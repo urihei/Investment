@@ -1,0 +1,2080 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Investment Portfolio Monitor</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #f0f2f5;
+    color: #1a1a2e;
+    min-height: 100vh;
+  }
+
+  /* ── Topbar ── */
+  .topbar {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    color: white;
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+  }
+  .topbar h1 { font-size: 1.4rem; font-weight: 600; letter-spacing: 0.5px; }
+
+  .topbar-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+  .currency-select {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  .currency-select option { background: #1a1a2e; }
+
+  .freq-btn {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.25);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: background 0.2s;
+  }
+  .freq-btn.active, .freq-btn:hover { background: rgba(255,255,255,0.3); }
+
+  .btn-add {
+    background: #0f3460;
+    border: none;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: background 0.2s;
+  }
+  .btn-add:hover { background: #e94560; }
+
+  /* ── Tabs ── */
+  .tabs {
+    display: flex;
+    gap: 0;
+    background: white;
+    border-bottom: 2px solid #e2e8f0;
+    padding: 0 32px;
+    overflow-x: auto;
+  }
+  .tab { padding: 14px 20px; cursor: pointer; font-size: 0.9rem; font-weight: 500;
+         color: #64748b; border-bottom: 3px solid transparent; white-space: nowrap;
+         transition: color 0.2s; }
+  .tab.active { color: #0f3460; border-bottom-color: #0f3460; }
+  .tab:hover { color: #0f3460; }
+
+  /* ── Main content ── */
+  .content { padding: 24px 32px; max-width: 1400px; margin: 0 auto; }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── Summary cards ── */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+           gap: 16px; margin-bottom: 24px; }
+  .card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .card .label { font-size: 0.78rem; color: #64748b; text-transform: uppercase;
+                  letter-spacing: 0.5px; margin-bottom: 8px; }
+  .card .value { font-size: 1.5rem; font-weight: 700; color: #1a1a2e; }
+  .card .sub   { font-size: 0.8rem; color: #64748b; margin-top: 4px; }
+  .card.green  .value { color: #16a34a; }
+  .card.red    .value { color: #dc2626; }
+
+  /* ── Chart containers ── */
+  .chart-card {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    margin-bottom: 24px;
+  }
+  .chart-card h2 { font-size: 1rem; font-weight: 600; color: #1a1a2e; margin-bottom: 16px; }
+  .chart-wrap { position: relative; height: 380px; }
+
+  /* ── Holdings table ── */
+  .table-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+  .table-card h2 { font-size: 1rem; font-weight: 600; color: #1a1a2e;
+                    padding: 20px 24px 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  thead { background: #f8fafc; }
+  th { padding: 10px 16px; text-align: left; font-weight: 600; color: #475569;
+       white-space: nowrap; border-bottom: 1px solid #e2e8f0; }
+  td { padding: 10px 16px; border-bottom: 1px solid #f1f5f9; }
+  tbody tr:hover { background: #f8fafc; }
+  .gain { color: #16a34a; font-weight: 600; }
+  .loss { color: #dc2626; font-weight: 600; }
+  .na   { color: #94a3b8; }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .badge-stock  { background: #dbeafe; color: #1d4ed8; }
+  .badge-etf    { background: #d1fae5; color: #065f46; }
+  .badge-cash   { background: #fef3c7; color: #92400e; }
+  .badge-bond   { background: #ede9fe; color: #5b21b6; }
+
+  /* ── Transactions table actions ── */
+  .btn-sm {
+    padding: 4px 10px;
+    font-size: 0.78rem;
+    border-radius: 4px;
+    cursor: pointer;
+    border: none;
+    margin-right: 4px;
+  }
+  .btn-edit   { background: #dbeafe; color: #1d4ed8; }
+  .btn-delete { background: #fee2e2; color: #dc2626; }
+  .btn-edit:hover   { background: #bfdbfe; }
+  .btn-delete:hover { background: #fecaca; }
+
+  /* ── Modal ── */
+  .modal-bg {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-bg.open { display: flex; }
+  .modal {
+    background: white;
+    border-radius: 12px;
+    padding: 28px;
+    width: 520px;
+    max-width: 95vw;
+    max-height: 92vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+  .modal h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 20px; color: #1a1a2e; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group.full { grid-column: 1/-1; }
+  .form-group label { font-size: 0.8rem; font-weight: 600; color: #475569;
+                       text-transform: uppercase; letter-spacing: 0.4px; }
+  .form-group input, .form-group select {
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .form-group input:focus, .form-group select:focus { border-color: #0f3460; }
+  .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+  .btn-cancel { background: #f1f5f9; border: none; color: #475569;
+                 padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+  .btn-save   { background: #0f3460; border: none; color: white;
+                 padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9rem;
+                 font-weight: 600; }
+  .btn-cancel:hover { background: #e2e8f0; }
+  .btn-save:hover   { background: #e94560; }
+
+  /* ── Loading / error ── */
+  .loading { text-align: center; padding: 60px; color: #94a3b8; font-size: 1rem; }
+  .spinner {
+    display: inline-block; width: 18px; height: 18px;
+    border: 3px solid rgba(15,52,96,0.2);
+    border-top-color: #0f3460;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle; margin-right: 8px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error-bar {
+    background: #fee2e2; color: #dc2626; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 16px; font-size: 0.9rem;
+    display: none;
+  }
+  .info-bar {
+    background: #eff6ff; color: #1d4ed8; border-radius: 8px;
+    padding: 10px 16px; margin-bottom: 16px; font-size: 0.85rem;
+    display: none;
+  }
+
+  /* ── Asset tab ── */
+  .asset-controls {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .asset-select {
+    flex: 1; min-width: 200px; max-width: 360px;
+    border: 1px solid #e2e8f0; border-radius: 8px;
+    padding: 9px 12px; font-size: 0.9rem; outline: none;
+    background: white;
+  }
+  .asset-select:focus { border-color: #0f3460; }
+  .event-legend {
+    display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.8rem;
+    color: #475569;
+  }
+  .event-legend span { display: flex; align-items: center; gap: 5px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .dot-buy      { background: #16a34a; }
+  .dot-sell     { background: #dc2626; }
+  .dot-split    { background: #7c3aed; }
+  .dot-dividend { background: #f59e0b; }
+
+  .divs-table { margin-top: 16px; }
+
+  /* ── NIS cash flow ── */
+  .cf-type-deposit      { color: #16a34a; }
+  .cf-type-sell         { color: #16a34a; }
+  .cf-type-dividend     { color: #16a34a; }
+  .cf-type-buy          { color: #dc2626; }
+  .cf-type-monthly_fee  { color: #dc2626; }
+  .cf-type-transaction_fee { color: #dc2626; }
+  .cf-type-initial      { color: #0f3460; }
+  .cf-badge {
+    display: inline-block; padding: 2px 8px; border-radius: 999px;
+    font-size: 0.72rem; font-weight: 600; text-transform: uppercase;
+  }
+  .cf-badge-deposit      { background:#dcfce7; color:#15803d; }
+  .cf-badge-sell         { background:#dcfce7; color:#15803d; }
+  .cf-badge-dividend     { background:#fef9c3; color:#854d0e; }
+  .cf-badge-buy          { background:#fee2e2; color:#b91c1c; }
+  .cf-badge-monthly_fee  { background:#fce7f3; color:#9d174d; }
+  .cf-badge-transaction_fee { background:#ede9fe; color:#5b21b6; }
+  .cf-badge-initial      { background:#dbeafe; color:#1d4ed8; }
+  .cf-badge-fx_exchange  { background:#e0f2fe; color:#0369a1; }
+
+  /* ── CSV Upload ── */
+  .csv-upload-zone {
+    border: 2px dashed #cbd5e1;
+    border-radius: 10px;
+    padding: 20px 24px;
+    background: #f8fafc;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .csv-upload-zone label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #475569;
+  }
+  .csv-upload-zone .csv-info {
+    font-size: 0.8rem;
+    color: #64748b;
+  }
+  .btn-csv {
+    background: #0f3460;
+    border: none;
+    color: white;
+    padding: 7px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: background 0.2s;
+  }
+  .btn-csv:hover { background: #e94560; }
+  .btn-csv-clear {
+    background: #fee2e2;
+    border: none;
+    color: #dc2626;
+    padding: 7px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: background 0.2s;
+  }
+  .btn-csv-clear:hover { background: #fecaca; }
+  .csv-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: #dcfce7;
+    color: #15803d;
+  }
+
+  @media (max-width: 640px) {
+    .content { padding: 16px; }
+    .topbar  { padding: 12px 16px; }
+    .tabs    { padding: 0 16px; }
+    .form-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Top bar ────────────────────────────────────────────── -->
+<div class="topbar">
+  <h1>📈 Portfolio Monitor</h1>
+  <div class="topbar-right">
+    <div>
+      <span style="font-size:0.8rem;opacity:0.7;margin-right:6px">Frequency:</span>
+      <button class="freq-btn" data-f="D">Daily</button>
+      <button class="freq-btn active" data-f="W">Weekly</button>
+      <button class="freq-btn" data-f="M">Monthly</button>
+    </div>
+    <select class="currency-select" id="currencySelect">
+      <option value="ILS">₪ ILS</option>
+      <option value="USD">$ USD</option>
+      <option value="EUR">€ EUR</option>
+      <option value="GBP">£ GBP</option>
+    </select>
+    <button class="btn-add" onclick="openModal()">＋ Add Action</button>
+  </div>
+</div>
+
+<!-- ── Tabs ───────────────────────────────────────────────── -->
+<div class="tabs">
+  <div class="tab active" data-tab="dashboard">Dashboard</div>
+  <div class="tab" data-tab="yearly">Yearly Yield</div>
+  <div class="tab" data-tab="asset">Asset View</div>
+  <div class="tab" data-tab="holdings">Holdings</div>
+  <div class="tab" data-tab="gains">Gains</div>
+  <div class="tab" data-tab="fees">Fees & Taxes</div>
+  <div class="tab" data-tab="actions">Transactions</div>
+</div>
+
+<!-- ── Content ────────────────────────────────────────────── -->
+<div class="content">
+  <div id="errorBar" class="error-bar"></div>
+  <div id="infoBar" class="info-bar"></div>
+
+  <!-- Dashboard -->
+  <div class="tab-panel active" id="panel-dashboard">
+    <div class="cards" id="summaryCards">
+      <div class="loading"><span class="spinner"></span>Loading portfolio…</div>
+    </div>
+    <div class="table-card">
+      <h2>Yearly Yield</h2>
+      <table>
+        <thead><tr>
+          <th>Year</th><th>Period</th><th>TWR</th><th>XIRR</th>
+          <th>Dividend Yield</th><th>Start Value</th><th>End Value</th><th>Net Deposits</th>
+        </tr></thead>
+        <tbody id="yearlyYieldBody"><tr><td colspan="8" class="loading">Loading…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="chart-card">
+      <h2>Portfolio Value Over Time</h2>
+      <div class="chart-wrap"><canvas id="timelineChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h2>Holdings Distribution (current value)</h2>
+      <div class="chart-wrap"><canvas id="distributionChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Yearly Yield -->
+  <div class="tab-panel" id="panel-yearly">
+    <div class="asset-controls" style="margin-bottom:12px">
+      <label for="yearlyFromYear" style="font-size:0.82rem;color:#475569;font-weight:600">From Year</label>
+      <select class="asset-select" id="yearlyFromYear" style="max-width:140px" onchange="applyYearlyRangeFilter()"></select>
+      <label for="yearlyToYear" style="font-size:0.82rem;color:#475569;font-weight:600">To Year</label>
+      <select class="asset-select" id="yearlyToYear" style="max-width:140px" onchange="applyYearlyRangeFilter()"></select>
+      <span id="yearlyRangeHint" class="na" style="font-size:0.82rem"></span>
+    </div>
+    <div class="asset-controls" style="margin-top:-8px;margin-bottom:12px">
+      <label for="yearlyStartDate" style="font-size:0.82rem;color:#475569;font-weight:600">Start Date</label>
+      <input type="date" id="yearlyStartDate" class="asset-select" style="max-width:170px" onchange="applyYearlyRangeFilter()">
+      <label for="yearlyEndDate" style="font-size:0.82rem;color:#475569;font-weight:600">End Date</label>
+      <input type="date" id="yearlyEndDate" class="asset-select" style="max-width:170px" onchange="applyYearlyRangeFilter()">
+      <span id="yearlyDateHint" class="na" style="font-size:0.82rem"></span>
+    </div>
+    <div id="yearlyMissingInfo" class="info-bar" style="display:none"></div>
+    <div class="cards" id="yearlyCards">
+      <div class="loading"><span class="spinner"></span>Loading yearly yield…</div>
+    </div>
+    <div class="chart-card">
+      <h2>Yearly Returns (TWR / XIRR / Dividend Yield)</h2>
+      <div class="chart-wrap"><canvas id="yearlyYieldChart"></canvas></div>
+    </div>
+    <div class="table-card">
+      <h2>Yearly Yield Details</h2>
+      <table>
+        <thead><tr>
+          <th>Year</th><th>Period</th><th>TWR</th><th>XIRR</th><th>Dividend Yield</th>
+          <th>Deposits</th><th>CG Tax</th><th>Start Value</th><th>End Value</th><th>Missing Prices</th>
+        </tr></thead>
+        <tbody id="yearlyYieldDetailBody"><tr><td colspan="10" class="loading">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Asset View -->
+  <div class="tab-panel" id="panel-asset">
+    <div class="asset-controls">
+      <select class="asset-select" id="assetSelect" onchange="loadAsset()">
+        <option value="">— select asset —</option>
+      </select>
+      <div class="event-legend">
+        <span><span class="dot dot-buy"></span>Buy</span>
+        <span><span class="dot dot-sell"></span>Sell</span>
+        <span><span class="dot dot-split"></span>Split</span>
+        <span><span class="dot dot-dividend"></span>Dividend</span>
+      </div>
+    </div>
+
+    <!-- CSV price upload (shown for assets without a live ticker) -->
+    <div class="csv-upload-zone" id="csvUploadZone" style="display:none">
+      <div style="flex:1">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+          <label>📂 Upload Price History (CSV)</label>
+          <span id="csvStatusBadge" style="display:none" class="csv-badge">✓ Prices loaded</span>
+        </div>
+        <p class="csv-info">Supports two formats — prices auto-converted from Agorot → ₪ (÷100):<br>
+          <strong>TASE ETF</strong>: columns Date (DD/MM/YYYY), Closing Price (Agorot) &nbsp;|&nbsp;
+          <strong>Mutual Fund</strong>: columns Fund-ID, Date (DD.MM.YYYY), Buy Price (Agorot)</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="file" id="csvFileInput" accept=".csv,.txt" style="display:none"
+                 onchange="uploadCsv()">
+          <button class="btn-csv" onclick="document.getElementById('csvFileInput').click()">
+            ⬆ Upload CSV
+          </button>
+          <button class="btn-csv-clear" id="csvClearBtn" style="display:none"
+                  onclick="clearCsvPrices()">✕ Clear</button>
+        </div>
+        <span id="csvRowsInfo" style="font-size:0.78rem;color:#64748b"></span>
+      </div>
+    </div>
+
+    <div class="chart-card" id="assetChartCard" style="display:none">
+      <h2 id="assetChartTitle">Asset Value Over Time</h2>
+      <div class="chart-wrap" style="height:440px"><canvas id="assetChart"></canvas></div>
+    </div>
+
+    <div id="assetInfoCards" class="cards" style="margin-top:0"></div>
+
+    <div class="table-card divs-table" id="assetDivsCard" style="display:none">
+      <h2>Dividend Events</h2>
+      <table>
+        <thead><tr>
+          <th>Date</th><th>Per Share</th><th>Qty Held</th>
+          <th>Gross</th><th>Tax (25%)</th><th>Net</th>
+        </tr></thead>
+        <tbody id="assetDivsBody"></tbody>
+      </table>
+    </div>
+
+    <div class="table-card" id="assetActionsCard" style="display:none;margin-top:16px">
+      <h2>Actions on this Asset</h2>
+      <table>
+        <thead><tr>
+          <th>Date</th><th>Type</th><th>Qty</th>
+          <th>Cost/Unit</th><th>Amount</th><th>Note</th>
+        </tr></thead>
+        <tbody id="assetActionsBody"></tbody>
+      </table>
+    </div>
+
+    <!-- NIS / USD cash flow (shown when a cash asset is selected) -->
+    <div class="table-card" id="nisCashflowCard" style="display:none;margin-top:16px">
+      <h2>Cash Flow Ledger</h2>
+      <table>
+        <thead><tr>
+          <th>Date</th><th>Type</th><th>Description</th>
+          <th style="text-align:right">Amount</th>
+          <th style="text-align:right">Balance</th>
+        </tr></thead>
+        <tbody id="nisCashflowBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Holdings -->
+  <div class="tab-panel" id="panel-holdings">
+    <div class="table-card">
+      <h2>Current Holdings</h2>
+      <table>
+        <thead><tr>
+          <th>Asset</th><th>Type</th><th>Ticker</th>
+          <th>Quantity</th><th>Price</th><th>Value</th>
+        </tr></thead>
+        <tbody id="holdingsBody"><tr><td colspan="6" class="loading">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Gains -->
+  <div class="tab-panel" id="panel-gains">
+    <div class="table-card">
+      <h2>Per-Asset Gain Summary</h2>
+      <table>
+        <thead><tr>
+          <th>Asset</th><th>Cost Basis</th><th>Current Value</th>
+          <th>Unrealized Gain</th><th>Net Dividends</th>
+          <th>Fees</th><th>Net Gain</th><th>Gain %</th>
+        </tr></thead>
+        <tbody id="gainsBody"><tr><td colspan="8" class="loading">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Fees -->
+  <div class="tab-panel" id="panel-fees">
+    <div class="cards" id="feeCards"></div>
+    <div class="table-card">
+      <h2>Fee Breakdown</h2>
+      <table>
+        <thead><tr><th>Date</th><th>Type</th><th>Symbol</th><th>Amount</th></tr></thead>
+        <tbody id="feesBody"><tr><td colspan="4" class="loading">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Transactions -->
+  <div class="tab-panel" id="panel-actions">
+    <div class="table-card">
+      <h2>All Transactions</h2>
+      <table>
+        <thead><tr>
+          <th>#</th><th>Date</th><th>Type</th><th>Symbol</th>
+          <th>Qty</th><th>Cost/Unit</th><th>Amount</th><th>Currency</th><th></th>
+        </tr></thead>
+        <tbody id="actionsBody"><tr><td colspan="9" class="loading">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── Missing Assets Modal ────────────────────────────────── -->
+<div class="modal-bg" id="missingModalBg">
+  <div class="modal" style="width:660px;max-width:95vw">
+    <h2>⚠ Missing Price Data — All Assets</h2>
+    <div id="missingModalBody" style="max-height:60vh;overflow-y:auto;margin-bottom:16px">
+      <table style="width:100%">
+        <thead><tr>
+          <th>Asset</th><th>Missing Days</th><th>First Missing</th><th>Last Missing</th>
+        </tr></thead>
+        <tbody id="missingModalTbody"></tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="document.getElementById('missingModalBg').classList.remove('open')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add/Edit Action Modal ──────────────────────────────── -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h2 id="modalTitle">Add Transaction</h2>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Date *</label>
+        <input type="date" id="f-date">
+      </div>
+      <div class="form-group">
+        <label>Type *</label>
+        <select id="f-type">
+          <option value="deposit">Deposit</option>
+          <option value="buy">Buy</option>
+          <option value="sell">Sell</option>
+          <option value="dividend">Dividend</option>
+          <option value="split">Stock Split</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Symbol</label>
+        <input type="text" id="f-symbol" placeholder="e.g. AAPL">
+      </div>
+      <div class="form-group">
+        <label>Ticker</label>
+        <input type="text" id="f-ticker" placeholder="e.g. AAPL">
+      </div>
+      <div class="form-group">
+        <label>Quantity</label>
+        <input type="number" id="f-qty" step="any" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>Cost per Unit</label>
+        <input type="number" id="f-cpu" step="any" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>Amount</label>
+        <input type="number" id="f-amount" step="any" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>Split Ratio <small style="text-transform:none;font-weight:400">(splits only)</small></label>
+        <input type="number" id="f-split-ratio" step="any" placeholder="e.g. 3 for 3-for-1">
+      </div>
+      <div class="form-group">
+        <label>Currency *</label>
+        <select id="f-currency">
+          <option value="ILS">ILS</option>
+          <option value="USD">USD</option>
+          <option value="EUR">EUR</option>
+          <option value="GBP">GBP</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>Note</label>
+        <input type="text" id="f-note" placeholder="Optional note">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" onclick="saveAction()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let currency   = 'ILS';
+let frequency  = 'W';
+let editingIdx = null;
+
+let timelineChart     = null;
+let distributionChart = null;
+let assetChart        = null;
+let yearlyYieldChart  = null;
+let yearlyYieldData   = null;
+let yearlyYieldSeries = null;
+
+// All known assets (name → info), populated after first summary load
+let allAssets = {};
+const apiCache = new Map();
+const inflightRequests = new Map();
+const API_CACHE_TTL_MS = 120000;
+
+const CURRENCY_SYMBOLS = { ILS: '₪', USD: '$', EUR: '€', GBP: '£' };
+const TYPE_COLORS = {
+  monthly_fee:       '#f59e0b',
+  transaction_fee:   '#3b82f6',
+  dividend_tax:      '#8b5cf6',
+  capital_gains_tax: '#ef4444',
+};
+
+// ── Init ───────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('f-date').value = new Date().toISOString().slice(0, 10);
+
+  document.querySelectorAll('.tab').forEach(t =>
+    t.addEventListener('click', () => switchTab(t.dataset.tab)));
+
+  document.querySelectorAll('.freq-btn').forEach(b =>
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.freq-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      frequency = b.dataset.f;
+      refreshAll();
+    }));
+
+  document.getElementById('currencySelect').addEventListener('change', e => {
+    currency = e.target.value;
+    refreshAll();
+  });
+
+  // Close modal on backdrop click
+  document.getElementById('modalBg').addEventListener('click', e => {
+    if (e.target === document.getElementById('modalBg')) closeModal();
+  });
+  document.getElementById('missingModalBg').addEventListener('click', e => {
+    if (e.target === document.getElementById('missingModalBg'))
+      document.getElementById('missingModalBg').classList.remove('open');
+  });
+
+  // ── Live auto-calculation: fill the third field when two are set ─────────
+  function autoCalcFields() {
+    const qtyEl  = document.getElementById('f-qty');
+    const cpuEl  = document.getElementById('f-cpu');
+    const amtEl  = document.getElementById('f-amount');
+    const qty    = parseFloat(qtyEl.value)  || null;
+    const cpu    = parseFloat(cpuEl.value)  || null;
+    const amount = parseFloat(amtEl.value)  || null;
+    // Only fill if the field is empty (don't overwrite user input)
+    if (qty && cpu && !amount)  amtEl.value = (Math.round(qty * cpu * 100) / 100);
+    if (qty && amount && !cpu)  cpuEl.value = (Math.round((amount / qty) * 10000) / 10000);
+    if (cpu && amount && !qty)  qtyEl.value = (Math.round((amount / cpu) * 10000) / 10000);
+  }
+  ['f-qty','f-cpu','f-amount'].forEach(id => {
+    document.getElementById(id).addEventListener('change', autoCalcFields);
+  });
+
+  loadDashboard();
+});
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('.tab-panel').forEach(p =>
+    p.classList.toggle('active', p.id === `panel-${name}`));
+
+  if (name === 'yearly')   loadYearlyYieldTab();
+  if (name === 'asset')    loadAssetTab();
+  if (name === 'holdings') loadHoldings();
+  if (name === 'gains')    loadGains();
+  if (name === 'fees')     loadFees();
+  if (name === 'actions')  loadActions();
+}
+
+function refreshAll() {
+  clearApiCache();
+  const active = document.querySelector('.tab.active')?.dataset.tab || 'dashboard';
+  loadDashboard();
+  if (active === 'yearly')   loadYearlyYieldTab();
+  if (active === 'asset')    loadAsset();
+  if (active === 'holdings') loadHoldings();
+  if (active === 'gains')    loadGains();
+  if (active === 'fees')     loadFees();
+  if (active === 'actions')  loadActions();
+}
+
+// ── API helpers ────────────────────────────────────────────────────────────
+async function api(path) {
+  const now = Date.now();
+  const cached = apiCache.get(path);
+  if (cached && (now - cached.ts) < API_CACHE_TTL_MS) {
+    return cached.data;
+  }
+
+  if (inflightRequests.has(path)) return inflightRequests.get(path);
+
+  const req = (async () => {
+    const res = await fetch(path);
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    const data = await res.json();
+    apiCache.set(path, { ts: Date.now(), data });
+    return data;
+  })();
+
+  inflightRequests.set(path, req);
+  try {
+    return await req;
+  } finally {
+    inflightRequests.delete(path);
+  }
+}
+
+function clearApiCache() {
+  apiCache.clear();
+  inflightRequests.clear();
+}
+
+function prefetchTabData() {
+  // Warm heavy tab endpoints in background after dashboard renders.
+  Promise.allSettled([
+    api(`/api/portfolio/gains?currency=${currency}`),
+    api(`/api/portfolio/fees?currency=${currency}`),
+    api(`/api/portfolio/yearly_yield?currency=${currency}`),
+    api('/api/actions'),
+  ]);
+}
+
+function showError(msg) {
+  const bar = document.getElementById('errorBar');
+  bar.textContent = '⚠ ' + msg;
+  bar.style.display = 'block';
+  setTimeout(() => bar.style.display = 'none', 8000);
+}
+
+function showInfo(msg) {
+  const bar = document.getElementById('infoBar');
+  bar.innerHTML = `<span class="spinner"></span>${msg}`;
+  bar.style.display = 'block';
+  return () => bar.style.display = 'none';
+}
+
+function fmt(n, decimals = 0) {
+  if (n == null) return '<span class="na">—</span>';
+  return CURRENCY_SYMBOLS[currency] + Number(n).toLocaleString('en-US',
+    { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+
+function fmtPct(n) {
+  if (n == null) return '<span class="na">—</span>';
+  const cls = n >= 0 ? 'gain' : 'loss';
+  return `<span class="${cls}">${n >= 0 ? '+' : ''}${n.toFixed(2)}%</span>`;
+}
+
+function fmtGain(n) {
+  if (n == null) return '<span class="na">—</span>';
+  const cls = n >= 0 ? 'gain' : 'loss';
+  return `<span class="${cls}">${n >= 0 ? '+' : ''}${fmt(n, 0)}</span>`;
+}
+
+function badgeType(t) {
+  const cls = { stock: 'badge-stock', etf: 'badge-etf', cash: 'badge-cash', bond: 'badge-bond' }[t] || 'badge-stock';
+  return `<span class="badge ${cls}">${t}</span>`;
+}
+
+// ── Dashboard ──────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  const hideInfo = showInfo('Loading portfolio data…');
+  document.getElementById('summaryCards').innerHTML =
+    '<div class="loading"><span class="spinner"></span>Fetching prices…</div>';
+  document.getElementById('yearlyYieldBody').innerHTML =
+    '<tr><td colspan="8" class="loading"><span class="spinner"></span>Computing yearly yield…</td></tr>';
+  try {
+    const [timeline, summary, yearly] = await Promise.all([
+      api(`/api/portfolio/timeline?currency=${currency}&frequency=${frequency}`),
+      api(`/api/portfolio/summary?currency=${currency}`),
+      api(`/api/portfolio/yearly_yield?currency=${currency}`),
+    ]);
+    hideInfo();
+    renderSummaryCards(summary, timeline);
+    renderYearlyYield(yearly);
+    renderTimelineChart(timeline);
+    renderDistributionChart(summary);
+    prefetchTabData();
+    // Show note about assets without prices
+    if (timeline.assets_without_prices?.length) {
+      const awp = timeline.assets_without_prices;
+      const bar = document.getElementById('infoBar');
+      const top = awp.slice(0, 6).join(', ');
+      const moreCount = awp.length - 6;
+      // Populate modal with simple list (no days/date info available here)
+      document.getElementById('missingModalTbody').innerHTML = awp.map(name =>
+        `<tr><td><strong>${name}</strong></td><td>—</td><td>—</td><td>—</td></tr>`
+      ).join('');
+      const showAllLink = awp.length > 6
+        ? ` <a href="#" style="color:#1d4ed8;font-weight:600" onclick="event.preventDefault();document.getElementById('missingModalBg').classList.add('open')">Show all ${awp.length} →</a>`
+        : '';
+      bar.innerHTML = `ℹ️ ${awp.length} asset(s) have no price data (TASE-only): ${top}` +
+        (moreCount > 0 ? ` +${moreCount} more` : '') + showAllLink;
+      bar.style.display = 'block';
+    }
+  } catch (e) {
+    hideInfo();
+    showError('Dashboard load failed: ' + e.message);
+  }
+}
+
+function renderSummaryCards(summary, timeline) {
+  const sym   = CURRENCY_SYMBOLS[currency];
+  const total = summary.total_value;
+  const tl    = timeline.timeline;
+  const last  = tl.length ? tl[tl.length - 1] : null;
+  const deposits = last ? last.cumulative_deposits : 0;
+  const gain   = total && deposits ? total - deposits : null;
+  const gainPct = gain != null && deposits ? (gain / deposits * 100) : null;
+
+  document.getElementById('summaryCards').innerHTML = `
+    <div class="card">
+      <div class="label">Portfolio Value</div>
+      <div class="value">${sym}${total != null ? total.toLocaleString('en-US',{maximumFractionDigits:0}) : '—'}</div>
+      <div class="sub">${summary.date}</div>
+    </div>
+    <div class="card">
+      <div class="label">Total Deposited</div>
+      <div class="value">${sym}${deposits.toLocaleString('en-US',{maximumFractionDigits:0})}</div>
+    </div>
+    <div class="card ${gain != null ? (gain >= 0 ? 'green' : 'red') : ''}">
+      <div class="label">Unrealized Gain</div>
+      <div class="value">${gain != null ? (gain >= 0 ? '+' : '') + sym + Math.abs(gain).toLocaleString('en-US',{maximumFractionDigits:0}) : '—'}</div>
+      <div class="sub">${gainPct != null ? (gainPct >= 0 ? '+' : '') + gainPct.toFixed(2) + '%' : ''}</div>
+    </div>
+    <div class="card">
+      <div class="label">Assets</div>
+      <div class="value">${summary.assets.filter(a => a.value).length}</div>
+      <div class="sub">${timeline.assets_without_prices.length} without price data</div>
+    </div>
+  `;
+}
+
+function renderYearlyYield(data) {
+  const years = data?.years || [];
+  const tbody = document.getElementById('yearlyYieldBody');
+  if (!years.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="na">No yearly yield data</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = years
+    .slice()
+    .sort((a, b) => (b.year || 0) - (a.year || 0))
+    .map(y => `
+      <tr>
+        <td><strong>${y.year}</strong>${y.partial_year ? '<br><small class="na">partial</small>' : ''}</td>
+        <td>${y.start_date} → ${y.end_date}</td>
+        <td>${fmtPct(y.twr_pct)}</td>
+        <td>${fmtPct(y.xirr_pct)}</td>
+        <td>${fmtPct(y.dividend_yield_pct)}</td>
+        <td>${fmt(y.start_market_value, 0)}</td>
+        <td>${fmt(y.end_market_value, 0)}</td>
+        <td>${fmt(y.net_deposits, 0)}</td>
+      </tr>
+    `).join('');
+}
+
+
+// ── Yearly Yield Tab ───────────────────────────────────────────────────────
+async function loadYearlyYieldTab() {
+  document.getElementById('yearlyCards').innerHTML =
+    '<div class="loading"><span class="spinner"></span>Loading yearly metrics…</div>';
+  document.getElementById('yearlyYieldDetailBody').innerHTML =
+    '<tr><td colspan="10" class="loading"><span class="spinner"></span>Computing…</td></tr>';
+
+  try {
+    const seriesFreq = (frequency === 'M') ? 'M' : 'W';
+    const [yearly, series] = await Promise.all([
+      api(`/api/portfolio/yearly_yield?currency=${currency}`),
+      api(`/api/portfolio/yield_series?currency=${currency}&frequency=${seriesFreq}&window_days=365`),
+    ]);
+    yearlyYieldData = yearly;
+    yearlyYieldSeries = series;
+    initYearlyRangeSelectors(yearlyYieldData);
+    applyYearlyRangeFilter();
+  } catch (e) {
+    showError('Yearly yield load failed: ' + e.message);
+  }
+}
+
+function initYearlyRangeSelectors(data) {
+  const years = (data?.years || []).map(y => y.year).filter(y => y != null).sort((a, b) => a - b);
+  const fromSel = document.getElementById('yearlyFromYear');
+  const toSel = document.getElementById('yearlyToYear');
+
+  fromSel.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+  toSel.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+
+  if (!years.length) return;
+
+  const currentFrom = Number(fromSel.value);
+  const currentTo = Number(toSel.value);
+  const minYear = years[0];
+  const maxYear = years[years.length - 1];
+
+  fromSel.value = years.includes(currentFrom) ? String(currentFrom) : String(minYear);
+  toSel.value = years.includes(currentTo) ? String(currentTo) : String(maxYear);
+
+  const points = (yearlyYieldSeries?.points || []).slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const startDateInput = document.getElementById('yearlyStartDate');
+  const endDateInput = document.getElementById('yearlyEndDate');
+  if (!points.length) {
+    startDateInput.value = '';
+    endDateInput.value = '';
+    startDateInput.min = '';
+    startDateInput.max = '';
+    endDateInput.min = '';
+    endDateInput.max = '';
+    return;
+  }
+  const minDate = points[0].date;
+  const maxDate = points[points.length - 1].date;
+  startDateInput.min = minDate;
+  startDateInput.max = maxDate;
+  endDateInput.min = minDate;
+  endDateInput.max = maxDate;
+  if (!startDateInput.value || startDateInput.value < minDate || startDateInput.value > maxDate) {
+    startDateInput.value = minDate;
+  }
+  if (!endDateInput.value || endDateInput.value < minDate || endDateInput.value > maxDate) {
+    endDateInput.value = maxDate;
+  }
+}
+
+function clampDateRangeToAvailable(points, requestedStart, requestedEnd) {
+  if (!points.length) {
+    return { effectiveStart: null, effectiveEnd: null, filtered: [], note: 'No datapoints available' };
+  }
+  const minDate = points[0].date;
+  const maxDate = points[points.length - 1].date;
+
+  let start = requestedStart || minDate;
+  let end = requestedEnd || maxDate;
+  if (start > end) {
+    const t = start;
+    start = end;
+    end = t;
+  }
+
+  const firstIdx = points.findIndex(p => p.date >= start);
+  let lastIdx = -1;
+  for (let i = points.length - 1; i >= 0; i--) {
+    if (points[i].date <= end) {
+      lastIdx = i;
+      break;
+    }
+  }
+
+  if (firstIdx < 0 || lastIdx < 0 || firstIdx > lastIdx) {
+    return {
+      effectiveStart: null,
+      effectiveEnd: null,
+      filtered: [],
+      note: `No datapoints between ${start} and ${end}`,
+    };
+  }
+
+  const effectiveStart = points[firstIdx].date;
+  const effectiveEnd = points[lastIdx].date;
+  const filtered = points.slice(firstIdx, lastIdx + 1);
+
+  let note = `${filtered.length} point(s) shown`;
+  if (effectiveStart !== start || effectiveEnd !== end) {
+    note = `Requested ${start} → ${end}; using nearest available ${effectiveStart} → ${effectiveEnd}`;
+  }
+  if (start < minDate || end > maxDate) {
+    note += ` (data bounds: ${minDate} → ${maxDate})`;
+  }
+
+  return { effectiveStart, effectiveEnd, filtered, note };
+}
+
+function applyYearlyRangeFilter() {
+  const fromSel = document.getElementById('yearlyFromYear');
+  const toSel = document.getElementById('yearlyToYear');
+  const allYears = (yearlyYieldData?.years || []).slice();
+
+  if (!allYears.length) {
+    renderYearlyYieldOverview([]);
+    renderYearlyYieldChart([]);
+    renderYearlyYieldDetailTable([]);
+    return;
+  }
+
+  let fromYear = Number(fromSel.value || allYears[0].year);
+  let toYear = Number(toSel.value || allYears[allYears.length - 1].year);
+
+  if (fromYear > toYear) {
+    const tmp = fromYear;
+    fromYear = toYear;
+    toYear = tmp;
+    fromSel.value = String(fromYear);
+    toSel.value = String(toYear);
+  }
+
+  const filtered = allYears.filter(y => y.year >= fromYear && y.year <= toYear);
+  document.getElementById('yearlyRangeHint').textContent = `${filtered.length} year(s) shown`;
+
+  renderYearlyYieldOverview(filtered);
+  const points = (yearlyYieldSeries?.points || []).filter(p => {
+    const y = Number((p.date || '').slice(0, 4));
+    return y >= fromYear && y <= toYear;
+  });
+  const startDateInput = document.getElementById('yearlyStartDate');
+  const endDateInput = document.getElementById('yearlyEndDate');
+  const clamped = clampDateRangeToAvailable(
+    points.slice().sort((a, b) => (a.date || '').localeCompare(b.date || '')),
+    startDateInput.value,
+    endDateInput.value,
+  );
+  if (clamped.effectiveStart) startDateInput.value = clamped.effectiveStart;
+  if (clamped.effectiveEnd) endDateInput.value = clamped.effectiveEnd;
+  document.getElementById('yearlyDateHint').textContent = clamped.note;
+  renderYearlyYieldChart(clamped.filtered);
+  renderYearlyYieldDetailTable(filtered);
+
+  const miss = yearlyYieldSeries?.missing_data || {};
+  const missEl = document.getElementById('yearlyMissingInfo');
+  const assets = miss.missing_assets || [];
+  if (!assets.length) {
+    missEl.style.display = 'none';
+  } else {
+    // Populate modal table
+    document.getElementById('missingModalTbody').innerHTML = assets.map(a =>
+      `<tr>
+        <td><strong>${a.asset}</strong></td>
+        <td>${a.missing_days}</td>
+        <td>${a.first_missing}</td>
+        <td>${a.last_missing}</td>
+      </tr>`
+    ).join('');
+
+    const top = assets.slice(0, 6).map(a =>
+      `${a.asset}: ${a.missing_days} day(s) [${a.first_missing} → ${a.last_missing}]`
+    ).join(' | ');
+    const moreCount = assets.length - 6;
+    const showAllLink = assets.length > 6
+      ? ` <a href="#" style="color:#1d4ed8;font-weight:600" onclick="event.preventDefault();document.getElementById('missingModalBg').classList.add('open')">Show all ${assets.length} →</a>`
+      : '';
+    missEl.innerHTML = `⚠ Missing price data on ${miss.missing_days || 0} day(s)` +
+      (miss.first_missing_date ? ` (${miss.first_missing_date} → ${miss.last_missing_date})` : '') +
+      `. Assets: ${top}` +
+      (moreCount > 0 ? ` | +${moreCount} more` : '') +
+      showAllLink;
+    missEl.style.display = 'block';
+  }
+}
+
+function renderYearlyYieldOverview(yearsInput) {
+  const years = (yearsInput || []).slice().sort((a, b) => (b.year || 0) - (a.year || 0));
+  const latest = years[0];
+  if (!latest) {
+    document.getElementById('yearlyCards').innerHTML =
+      '<div class="card"><div class="label">Yearly Yield</div><div class="value">—</div><div class="sub">No data</div></div>';
+    return;
+  }
+
+  document.getElementById('yearlyCards').innerHTML = `
+    <div class="card ${latest.twr_pct != null && latest.twr_pct >= 0 ? 'green' : 'red'}">
+      <div class="label">Latest TWR (${latest.year})</div>
+      <div class="value">${latest.twr_pct != null ? (latest.twr_pct >= 0 ? '+' : '') + latest.twr_pct.toFixed(2) + '%' : '—'}</div>
+      <div class="sub">Time-weighted return</div>
+    </div>
+    <div class="card ${latest.xirr_pct != null && latest.xirr_pct >= 0 ? 'green' : 'red'}">
+      <div class="label">Latest XIRR (${latest.year})</div>
+      <div class="value">${latest.xirr_pct != null ? (latest.xirr_pct >= 0 ? '+' : '') + latest.xirr_pct.toFixed(2) + '%' : '—'}</div>
+      <div class="sub">Money-weighted return</div>
+    </div>
+    <div class="card green">
+      <div class="label">Dividend Yield (${latest.year})</div>
+      <div class="value">${latest.dividend_yield_pct != null ? latest.dividend_yield_pct.toFixed(2) + '%' : '—'}</div>
+      <div class="sub">Net dividends / avg market value</div>
+    </div>
+    <div class="card">
+      <div class="label">Years Covered</div>
+      <div class="value">${years.length}</div>
+      <div class="sub">${years[years.length - 1]?.year || ''} → ${latest.year}</div>
+    </div>
+  `;
+}
+
+function renderYearlyYieldChart(pointsInput) {
+  const points = (pointsInput || []).slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const labels = points.map(p => p.date);
+  const twr = points.map(p => p.twr_pct);
+
+  const chartTitle = document.querySelector('#panel-yearly .chart-card h2');
+  if (chartTitle) {
+    const freq = yearlyYieldSeries?.point_frequency === 'M' ? 'Monthly' : 'Weekly';
+    chartTitle.textContent = `Rolling 1Y Yield (${freq} datapoints)`;
+  }
+
+  const ctx = document.getElementById('yearlyYieldChart').getContext('2d');
+  if (yearlyYieldChart) yearlyYieldChart.destroy();
+
+  yearlyYieldChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          type: 'line',
+          label: 'Rolling 1Y TWR %',
+          data: twr,
+          backgroundColor: 'rgba(15,52,96,0.10)',
+          borderColor: '#0f3460',
+          tension: 0.25,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          fill: true,
+          borderWidth: 2,
+          spanGaps: false,
+          yAxisID: 'y',
+        },
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { position: 'top' } },
+      scales: {
+        y: {
+          position: 'left',
+          ticks: { callback: v => `${v}%` },
+          title: { display: true, text: 'Rolling 1Y TWR %' },
+        },
+      },
+    },
+  });
+}
+
+function renderYearlyYieldDetailTable(yearsInput) {
+  const years = (yearsInput || []).slice().sort((a, b) => (b.year || 0) - (a.year || 0));
+  const tbody = document.getElementById('yearlyYieldDetailBody');
+
+  if (!years.length) {
+    tbody.innerHTML = '<tr><td colspan="10" class="na">No yearly yield data</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = years.map(y => `
+    <tr>
+      <td><strong>${y.year}</strong>${y.partial_year ? '<br><small class="na">partial</small>' : ''}</td>
+      <td>${y.start_date} → ${y.end_date}</td>
+      <td>${fmtPct(y.twr_pct)}</td>
+      <td>${fmtPct(y.xirr_pct)}</td>
+      <td>${fmtPct(y.dividend_yield_pct)}</td>
+      <td>${fmt(y.net_deposits, 0)}</td>
+      <td>${fmt(y.capital_gains_tax, 0)}</td>
+      <td>${fmt(y.start_market_value, 0)}</td>
+      <td>${fmt(y.end_market_value, 0)}</td>
+      <td>${y.has_missing_prices ? '<span class="loss">Yes</span>' : '<span class="gain">No</span>'}</td>
+    </tr>
+  `).join('');
+}
+
+function renderTimelineChart(data) {
+  const tl = data.timeline;
+  const labels   = tl.map(p => p.date);
+  const values   = tl.map(p => p.total_value);
+  const deposits = tl.map(p => p.cumulative_deposits);
+  const divs     = tl.map(p => p.net_dividends);
+
+  const ctx = document.getElementById('timelineChart').getContext('2d');
+  if (timelineChart) timelineChart.destroy();
+
+  timelineChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: `Portfolio Value (${currency})`,
+          data: values,
+          borderColor: '#0f3460',
+          backgroundColor: 'rgba(15,52,96,0.08)',
+          tension: 0.3, fill: true, pointRadius: 2, pointHoverRadius: 5,
+          borderWidth: 2,
+        },
+        {
+          label: 'Cumulative Deposits',
+          data: deposits,
+          borderColor: '#94a3b8',
+          borderDash: [6, 3],
+          tension: 0.2, fill: false, pointRadius: 0, borderWidth: 1.5,
+        },
+        {
+          label: 'Net Dividends (cumulative)',
+          data: divs,
+          borderColor: '#16a34a',
+          tension: 0.2, fill: false, pointRadius: 0, borderWidth: 1.5,
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { position: 'top' } },
+      scales: {
+        y: {
+          ticks: {
+            callback: v => CURRENCY_SYMBOLS[currency] + v.toLocaleString('en-US', {maximumFractionDigits:0})
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderDistributionChart(summary) {
+  const assets = summary.assets
+    .filter(a => a.value && a.value > 0)
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 15);
+
+  const labels = assets.map(a => a.name);
+  const values = assets.map(a => a.value);
+  const colors = assets.map((_, i) => `hsl(${(i * 360 / assets.length)}, 60%, 55%)`);
+
+  const ctx = document.getElementById('distributionChart').getContext('2d');
+  if (distributionChart) distributionChart.destroy();
+
+  distributionChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: `Value (${currency})`,
+        data: values,
+        backgroundColor: colors,
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      indexAxis: 'y',
+      plugins: { legend: { display: false } },
+      scales: {
+        x: {
+          ticks: {
+            callback: v => CURRENCY_SYMBOLS[currency] + v.toLocaleString('en-US', {maximumFractionDigits:0})
+          }
+        }
+      }
+    }
+  });
+}
+
+// ── Asset View ─────────────────────────────────────────────────────────────
+
+async function loadAssetTab() {
+  // Populate selector from summary (always refresh to get updated values)
+  const sel = document.getElementById('assetSelect');
+  const prevVal = sel.value;  // remember previously selected asset
+  try {
+    const data = await api(`/api/portfolio/summary?currency=${currency}`);
+    data.assets.forEach(a => { allAssets[a.name] = a; });
+    // Clear and repopulate
+    sel.innerHTML = '<option value="">— select asset —</option>';
+    const sorted = [...data.assets].sort((a,b) => a.name.localeCompare(b.name));
+    sorted.forEach(a => {
+      const opt = document.createElement('option');
+      opt.value = a.name;
+      const hasCsv     = a.ticker && a.ticker.startsWith('CSV:');
+      const noLiveTick = !a.ticker || hasCsv;
+      const isCash     = a.asset_type === 'cash';
+      if (isCash || !noLiveTick) {
+        // Cash or live-ticker asset: show ticker in parentheses
+        opt.textContent = a.ticker && !hasCsv
+          ? `${a.name} (${a.ticker})`
+          : a.name;
+      } else {
+        // No live ticker: show folder icon — CSV loaded or awaiting upload
+        const csvLabel = hasCsv ? ' 📂✓' : ' 📂';
+        opt.textContent = `${a.name}${csvLabel}`;
+      }
+      sel.appendChild(opt);
+    });
+    // Restore previous selection if still valid
+    if (prevVal && [...sel.options].some(o => o.value === prevVal)) {
+      sel.value = prevVal;
+      loadAsset();
+    }
+  } catch(e) { showError('Could not load asset list: ' + e.message); }
+}
+
+async function loadAsset() {
+  const name = document.getElementById('assetSelect').value;
+  if (!name) return;
+
+  document.getElementById('assetChartCard').style.display    = 'none';
+  document.getElementById('assetDivsCard').style.display     = 'none';
+  document.getElementById('assetActionsCard').style.display  = 'none';
+  document.getElementById('nisCashflowCard').style.display   = 'none';
+  document.getElementById('csvUploadZone').style.display     = 'none';
+  document.getElementById('assetInfoCards').innerHTML =
+    `<div class="loading"><span class="spinner"></span>Loading ${name}…</div>`;
+
+  // ── Special NIS / USD cash view ────────────────────────────────────────
+  if (name === 'NIS') {
+    await loadCashAsset('NIS', 'ILS', '₪');
+    return;
+  }
+  if (name === 'USD') {
+    await loadCashAsset('USD', 'USD', '$');
+    return;
+  }
+
+  try {
+    const encName = encodeURIComponent(name);
+    const [hist, actionsAll] = await Promise.all([
+      api(`/api/asset/${encName}/history?currency=${currency}&frequency=${frequency}`),
+      api('/api/actions'),
+    ]);
+
+    // ── CSV upload zone: show for any non-cash asset without a live ticker ──
+    const hasCsvTicker  = hist.ticker && hist.ticker.startsWith('CSV:');
+    const hasNoTicker   = !hist.ticker || hasCsvTicker;
+    const isCashAsset   = hist.asset_type === 'cash';
+
+    const uploadZone  = document.getElementById('csvUploadZone');
+    const statusBadge = document.getElementById('csvStatusBadge');
+    const clearBtn    = document.getElementById('csvClearBtn');
+    const rowsInfo    = document.getElementById('csvRowsInfo');
+
+    document.getElementById('csvFileInput').dataset.asset = name;
+
+    if (!isCashAsset && hasNoTicker) {
+      uploadZone.style.display  = 'flex';
+      statusBadge.style.display = hasCsvTicker ? 'inline-block' : 'none';
+      clearBtn.style.display    = hasCsvTicker ? 'inline-block' : 'none';
+      if (!hasCsvTicker) rowsInfo.textContent = '';
+    }
+
+    // ── Info cards ──────────────────────────────────────────────────────
+    const sym    = CURRENCY_SYMBOLS[currency];
+    const tl     = hist.timeline || [];
+    const last   = tl.length ? tl[tl.length - 1] : null;
+    const currentVal  = last?.total_value;
+    const currentQty  = last?.quantity;
+    const netDivs     = last?.net_cumulative_dividends || 0;
+    const divEvents   = hist.dividend_events || [];
+
+    const tickerLabel = hist.ticker
+      ? (hist.ticker.startsWith('CSV:') ? '📂 CSV prices' : hist.ticker)
+      : 'no ticker';
+
+    document.getElementById('assetInfoCards').innerHTML = `
+      <div class="card">
+        <div class="label">Current Value</div>
+        <div class="value">${currentVal != null ? sym + currentVal.toLocaleString('en-US',{maximumFractionDigits:0}) : '—'}</div>
+        <div class="sub">${tickerLabel} · ${hist.ticker_currency || ''}</div>
+      </div>
+      <div class="card">
+        <div class="label">Quantity Held</div>
+        <div class="value">${currentQty != null ? currentQty.toLocaleString('en-US',{maximumFractionDigits:4}) : '—'}</div>
+      </div>
+      <div class="card green">
+        <div class="label">Net Dividends</div>
+        <div class="value">${sym}${netDivs.toLocaleString('en-US',{maximumFractionDigits:0})}</div>
+        <div class="sub">${divEvents.length} payment(s)</div>
+      </div>
+      <div class="card">
+        <div class="label">Asset Type</div>
+        <div class="value" style="font-size:1.1rem">${badgeType(hist.asset_type || 'stock')}</div>
+      </div>
+    `;
+
+    // ── Filter actions for this asset ───────────────────────────────────
+    const assetActions = actionsAll.filter(a =>
+      a.symbol === name || a.ticker === hist.ticker ||
+      (a.symbol && name.toLowerCase().includes(a.symbol.toLowerCase()))
+    );
+
+    // ── Chart ───────────────────────────────────────────────────────────
+    renderAssetChart(hist, assetActions, name);
+
+    // ── Dividends table ─────────────────────────────────────────────────
+    if (divEvents.length) {
+      document.getElementById('assetDivsCard').style.display = 'block';
+      document.getElementById('assetDivsBody').innerHTML = divEvents.map(d => `
+        <tr>
+          <td>${d.date}</td>
+          <td>${d.per_share.toFixed(4)} ${hist.ticker_currency}</td>
+          <td>${d.quantity_held.toLocaleString()}</td>
+          <td class="gain">${sym}${d.gross_amount.toLocaleString('en-US',{maximumFractionDigits:2})}</td>
+          <td class="loss">−${sym}${d.tax.toLocaleString('en-US',{maximumFractionDigits:2})}</td>
+          <td class="gain">${sym}${d.net_amount.toLocaleString('en-US',{maximumFractionDigits:2})}</td>
+        </tr>`).join('');
+    }
+
+    // ── Actions table ───────────────────────────────────────────────────
+    if (assetActions.length) {
+      document.getElementById('assetActionsCard').style.display = 'block';
+      const ACTION_COLORS = { buy:'gain', sell:'loss', split:'', dividend:'', deposit:'' };
+      document.getElementById('assetActionsBody').innerHTML = assetActions.map(a => `
+        <tr>
+          <td>${a.date}</td>
+          <td><strong class="${ACTION_COLORS[a.action_type]||''}">${a.action_type}</strong>
+            ${a.split_ratio ? `<span class="na"> ×${a.split_ratio}</span>` : ''}</td>
+          <td>${a.quantity ?? '<span class="na">—</span>'}</td>
+          <td>${a.cost_per_unit ?? '<span class="na">—</span>'}</td>
+          <td>${a.amount != null ? a.amount.toLocaleString('en-US',{maximumFractionDigits:2}) + ' ' + a.currency : '<span class="na">—</span>'}</td>
+          <td class="na">${a.note || ''}</td>
+        </tr>`).join('');
+    }
+
+  } catch(e) {
+    document.getElementById('assetInfoCards').innerHTML = '';
+    showError('Asset load failed: ' + e.message);
+  }
+}
+
+// ── Cash Asset View (NIS / USD) ────────────────────────────────────────────
+async function loadCashAsset(name, cashCurrency, cashSym) {
+  try {
+    const data = await api(`/api/asset/${name}/cashflow`);
+    const cf   = data.cashflow;
+    const sym  = CURRENCY_SYMBOLS[currency];
+
+    const finalBal  = data.final_balance;
+    const deposits  = cf.filter(e => e.type === 'deposit').reduce((s,e) => s + e.amount, 0);
+    const totalFees = cf.filter(e => e.type === 'monthly_fee' || e.type === 'transaction_fee')
+                        .reduce((s,e) => s + e.amount, 0);
+    const totalDivs = cf.filter(e => e.type === 'dividend').reduce((s,e) => s + e.amount, 0);
+    const fxIn      = cf.filter(e => e.type === 'fx_exchange' && e.amount > 0).reduce((s,e) => s + e.amount, 0);
+    const fxOut     = cf.filter(e => e.type === 'fx_exchange' && e.amount < 0).reduce((s,e) => s + e.amount, 0);
+
+    // Convert final balance to display currency for the card
+    const dispSym = CURRENCY_SYMBOLS[currency];
+
+    document.getElementById('assetInfoCards').innerHTML = `
+      <div class="card">
+        <div class="label">Current Balance</div>
+        <div class="value">${cashSym}${finalBal.toLocaleString('en-US',{maximumFractionDigits:2})}</div>
+        <div class="sub">${name} · ${cashCurrency} cash</div>
+      </div>
+      <div class="card">
+        <div class="label">Total Deposited (${cashCurrency})</div>
+        <div class="value">${cashSym}${deposits.toLocaleString('en-US',{maximumFractionDigits:2})}</div>
+      </div>
+      <div class="card green">
+        <div class="label">Dividends Received (${cashCurrency})</div>
+        <div class="value">${cashSym}${totalDivs.toLocaleString('en-US',{maximumFractionDigits:2})}</div>
+      </div>
+      ${fxIn > 0 ? `<div class="card">
+        <div class="label">FX Exchange In</div>
+        <div class="value">${cashSym}${fxIn.toLocaleString('en-US',{maximumFractionDigits:2})}</div>
+        ${fxOut < 0 ? `<div class="sub">out: ${cashSym}${Math.abs(fxOut).toLocaleString('en-US',{maximumFractionDigits:2})}</div>` : ''}
+      </div>` : ''}
+      <div class="card red">
+        <div class="label">Total Fees Deducted</div>
+        <div class="value">${cashSym}${Math.abs(totalFees).toLocaleString('en-US',{maximumFractionDigits:2})}</div>
+      </div>
+    `;
+
+    renderCashChart(cf, name, cashSym, cashCurrency);
+
+    document.getElementById('nisCashflowCard').style.display = 'block';
+    document.getElementById('nisCashflowCard').querySelector('h2').textContent =
+      `${name} Cash Flow Ledger`;
+    const INFLOW_TYPES = new Set(['deposit', 'sell', 'dividend', 'initial']);
+    document.getElementById('nisCashflowBody').innerHTML = cf.map(e => {
+      const inflow = e.amount >= 0;
+      const amtCls = inflow ? 'gain' : 'loss';
+      const amtStr = (inflow ? '+' : '') + cashSym +
+        Math.abs(e.amount).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:4});
+      const extra  = e.gross != null
+        ? `<br><small class="na">gross ${cashSym}${Number(e.gross).toLocaleString('en-US',{maximumFractionDigits:4})} · tax ${cashSym}${Number(e.tax).toLocaleString('en-US',{maximumFractionDigits:4})}</small>`
+        : '';
+      return `<tr>
+        <td>${e.date}</td>
+        <td><span class="cf-badge cf-badge-${e.type}">${e.type.replace(/_/g,' ')}</span></td>
+        <td>${e.label}${extra}</td>
+        <td style="text-align:right"><span class="${amtCls}">${amtStr}</span></td>
+        <td style="text-align:right"><strong>${cashSym}${Number(e.balance).toLocaleString('en-US',{maximumFractionDigits:2})}</strong></td>
+      </tr>`;
+    }).join('');
+
+  } catch(e) {
+    document.getElementById('assetInfoCards').innerHTML = '';
+    showError(`${name} load failed: ` + e.message);
+  }
+}
+
+// ── CSV Price Upload ────────────────────────────────────────────────────────
+async function uploadCsv() {
+  const input = document.getElementById('csvFileInput');
+  const name  = input.dataset.asset;
+  if (!name || !input.files.length) return;
+
+  const hideInfo = showInfo(`Uploading price CSV for ${name}…`);
+  const formData = new FormData();
+  formData.append('file', input.files[0]);
+
+  try {
+    const res  = await fetch(`/api/asset/${encodeURIComponent(name)}/upload_prices`, {
+      method: 'POST',
+      body: formData,
+    });
+    const data = await res.json();
+    hideInfo();
+
+    if (!res.ok) {
+      showError('CSV upload failed: ' + (data.error || res.statusText));
+      return;
+    }
+
+    // Show success state in the upload zone
+    document.getElementById('csvStatusBadge').style.display = 'inline-block';
+    document.getElementById('csvClearBtn').style.display    = 'inline-block';
+    document.getElementById('csvRowsInfo').textContent =
+      `✓ ${data.rows_imported} rows · ${data.date_range[0]} → ${data.date_range[1]} · latest ₪${Number(data.sample_price).toFixed(2)}`;
+
+    // Update allAssets so future checks know this asset has a CSV ticker
+    if (allAssets[name]) allAssets[name].ticker = data.virtual_ticker;
+
+    clearApiCache();
+
+    // Reload asset view to show the chart with new price data
+    await loadAsset();
+  } catch(e) {
+    hideInfo();
+    showError('CSV upload error: ' + e.message);
+  }
+  // Reset so the same file can be re-uploaded
+  input.value = '';
+}
+
+async function clearCsvPrices() {
+  const input = document.getElementById('csvFileInput');
+  const name  = input.dataset.asset;
+  if (!name) return;
+
+  if (!confirm(`Remove CSV prices for "${name}"? The asset will show no price data until a new CSV is uploaded.`)) return;
+
+  const hideInfo = showInfo(`Clearing CSV prices for ${name}…`);
+  try {
+    const res  = await fetch(`/api/asset/${encodeURIComponent(name)}/clear_prices`, { method: 'POST' });
+    const data = await res.json();
+    hideInfo();
+    if (!res.ok) { showError(data.error || 'Failed to clear prices'); return; }
+
+    document.getElementById('csvStatusBadge').style.display = 'none';
+    document.getElementById('csvClearBtn').style.display    = 'none';
+    document.getElementById('csvRowsInfo').textContent      = '';
+    if (allAssets[name]) allAssets[name].ticker = null;
+
+    clearApiCache();
+
+    await loadAsset();
+  } catch(e) {
+    hideInfo();
+    showError('Clear error: ' + e.message);
+  }
+}
+
+function renderCashChart(cf, name, cashSym, cashCurrency) {
+  if (!cf.length) return;
+
+  const labels = cf.map(e => e.date);
+  const values = cf.map(e => e.balance);
+  const colors = cf.map(e => e.amount >= 0 ? 'rgba(22,163,74,0.75)' : 'rgba(220,38,38,0.75)');
+
+  document.getElementById('assetChartTitle').textContent = `${name} Cash Balance Over Time`;
+  document.getElementById('assetChartCard').style.display = 'block';
+
+  const ctx = document.getElementById('assetChart').getContext('2d');
+  if (assetChart) assetChart.destroy();
+
+  assetChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: `${name} Balance (${cashCurrency})`,
+        data: values,
+        borderColor: '#0f3460',
+        backgroundColor: 'rgba(15,52,96,0.08)',
+        tension: 0,
+        fill: true,
+        pointRadius: cf.map(e => e.type === 'initial' ? 0 : 5),
+        pointBackgroundColor: colors,
+        pointBorderColor: 'white',
+        pointBorderWidth: 1.5,
+        pointHoverRadius: 7,
+        borderWidth: 2,
+        stepped: 'before',
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: items => items[0]?.label,
+            label: item => {
+              const e = cf[item.dataIndex];
+              const sign = e.amount >= 0 ? '+' : '';
+              return [
+                e.label,
+                `${sign}${cashSym}${Math.abs(e.amount).toLocaleString('en-US',{maximumFractionDigits:4})}`,
+                `Balance: ${cashSym}${Number(e.balance).toLocaleString('en-US',{maximumFractionDigits:2})}`
+              ];
+            }
+          }
+        }
+      },
+      scales: {
+        y: { ticks: { callback: v => cashSym + v.toLocaleString('en-US',{maximumFractionDigits:2}) } }
+      }
+    }
+  });
+}
+
+function renderAssetChart(hist, assetActions, name) {
+  const tl  = hist.timeline || [];
+  if (!tl.length) return;
+
+  const labels     = tl.map(p => p.date);
+  const priceVals  = tl.map(p => p.price_value);
+  const totalVals  = tl.map(p => p.total_value);
+  const sym        = CURRENCY_SYMBOLS[currency];
+
+  // ── Build annotation objects for each event ─────────────────────────
+  const EVENT_STYLES = {
+    buy:      { color: '#16a34a', label: '▲ Buy'      },
+    sell:     { color: '#dc2626', label: '▼ Sell'     },
+    split:    { color: '#7c3aed', label: '✂ Split'    },
+    dividend: { color: '#f59e0b', label: '💰 Div'     },
+  };
+  const dateToIdx = Object.fromEntries(labels.map((d,i) => [d,i]));
+
+  // For each action: find nearest chart date
+  const annotations = {};
+  assetActions.forEach((a, i) => {
+    const style = EVENT_STYLES[a.action_type];
+    if (!style) return;
+
+    // Find closest date in chart labels
+    const idx = findNearestIdx(labels, a.date);
+    if (idx == null) return;
+    const yVal = totalVals[idx] ?? priceVals[idx];
+    if (yVal == null) return;
+
+    const key = `evt_${i}`;
+    annotations[key] = {
+      type: 'point',
+      xValue: labels[idx],
+      yValue: yVal,
+      backgroundColor: style.color,
+      borderColor: 'white',
+      borderWidth: 2,
+      radius: 7,
+      // Tooltip via label
+      label: {
+        enabled: true,
+        content: buildEventLabel(a, style.label),
+        position: 'top',
+        backgroundColor: style.color + 'ee',
+        color: 'white',
+        font: { size: 11 },
+        padding: { x: 6, y: 3 },
+        borderRadius: 4,
+        display: false,  // show on hover via custom tooltip instead
+      }
+    };
+  });
+
+  // Dividend events from hist
+  (hist.dividend_events || []).forEach((d, i) => {
+    const idx = findNearestIdx(labels, d.date);
+    if (idx == null) return;
+    const yVal = totalVals[idx] ?? priceVals[idx];
+    if (yVal == null) return;
+    annotations[`div_${i}`] = {
+      type: 'point',
+      xValue: labels[idx],
+      yValue: yVal,
+      backgroundColor: '#f59e0b',
+      borderColor: 'white',
+      borderWidth: 2,
+      radius: 6,
+    };
+  });
+
+  document.getElementById('assetChartTitle').textContent = `${name} — Value Over Time`;
+  document.getElementById('assetChartCard').style.display = 'block';
+  const ctx = document.getElementById('assetChart').getContext('2d');
+  if (assetChart) assetChart.destroy();
+
+  // Build a rich custom tooltip
+  const tooltipPlugin = {
+    id: 'eventTooltip',
+    afterDraw(chart) {}  // handled by Chart.js built-in
+  };
+
+  assetChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: `Total Value incl. dividends (${currency})`,
+          data: totalVals,
+          borderColor: '#0f3460',
+          backgroundColor: 'rgba(15,52,96,0.07)',
+          tension: 0.3, fill: true, pointRadius: 0, pointHoverRadius: 4,
+          borderWidth: 2,
+        },
+        {
+          label: `Price Value only (${currency})`,
+          data: priceVals,
+          borderColor: '#94a3b8',
+          borderDash: [5,3],
+          tension: 0.3, fill: false, pointRadius: 0, pointHoverRadius: 3,
+          borderWidth: 1.5,
+        },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top' },
+        annotation: { annotations },
+        tooltip: {
+          callbacks: {
+            afterBody(items) {
+              const date = items[0]?.label;
+              const lines = [];
+              // Show any actions on this date
+              assetActions.forEach(a => {
+                if (a.date === date) {
+                  const style = EVENT_STYLES[a.action_type];
+                  if (style) lines.push(buildEventLabel(a, style.label));
+                }
+              });
+              (hist.dividend_events || []).forEach(d => {
+                if (d.date === date)
+                  lines.push(`💰 Dividend: ${sym}${d.net_amount.toFixed(2)} net`);
+              });
+              return lines;
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          ticks: {
+            callback: v => sym + v.toLocaleString('en-US',{maximumFractionDigits:0})
+          }
+        }
+      }
+    }
+  });
+}
+
+function findNearestIdx(labels, dateStr) {
+  if (!labels.length) return null;
+  // Exact match first
+  const exact = labels.indexOf(dateStr);
+  if (exact >= 0) return exact;
+  // Find closest by date comparison
+  let best = 0, bestDiff = Infinity;
+  const target = new Date(dateStr).getTime();
+  labels.forEach((l, i) => {
+    const diff = Math.abs(new Date(l).getTime() - target);
+    if (diff < bestDiff) { bestDiff = diff; best = i; }
+  });
+  return best;
+}
+
+function buildEventLabel(a, prefix) {
+  const parts = [prefix];
+  if (a.quantity)      parts.push(`qty: ${a.quantity}`);
+  if (a.cost_per_unit) parts.push(`@ ${a.cost_per_unit}`);
+  if (a.split_ratio)   parts.push(`×${a.split_ratio}`);
+  if (a.amount)        parts.push(`${a.amount} ${a.currency}`);
+  return parts.join(' | ');
+}
+
+// ── Holdings ───────────────────────────────────────────────────────────────
+async function loadHoldings() {
+  document.getElementById('holdingsBody').innerHTML =
+    `<tr><td colspan="6" class="loading"><span class="spinner"></span>Loading…</td></tr>`;
+  try {
+    const data = await api(`/api/portfolio/summary?currency=${currency}`);
+    const sym = CURRENCY_SYMBOLS[currency];
+    // Normalise ILA → ILS in the currency label (engine already divides price ÷100)
+    const priceCur = c => c === 'ILA' ? 'ILS' : (c || '');
+    document.getElementById('holdingsBody').innerHTML =
+      data.assets.map(a => `
+        <tr>
+          <td><strong>${a.name}</strong></td>
+          <td>${badgeType(a.asset_type || 'stock')}</td>
+          <td><code>${a.ticker || '<span class="na">—</span>'}</code></td>
+          <td>${a.quantity.toLocaleString('en-US', {maximumFractionDigits:4})}</td>
+          <td>${a.price != null
+            ? a.price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:4}) + ' ' + priceCur(a.currency)
+            : '<span class="na">—</span>'}</td>
+          <td>${a.value != null
+            ? sym + a.value.toLocaleString('en-US',{maximumFractionDigits:0})
+            : '<span class="na">no price data</span>'}</td>
+        </tr>`).join('') || '<tr><td colspan="6" class="na">No holdings</td></tr>';
+  } catch (e) { showError('Holdings load failed: ' + e.message); }
+}
+
+// ── Gains ──────────────────────────────────────────────────────────────────
+async function loadGains() {
+  document.getElementById('gainsBody').innerHTML =
+    `<tr><td colspan="8" class="loading"><span class="spinner"></span>Computing gains…</td></tr>`;
+  try {
+    const data = await api(`/api/portfolio/gains?currency=${currency}`);
+    document.getElementById('gainsBody').innerHTML =
+      data.gains.map(g => `
+        <tr>
+          <td><strong>${g.asset}</strong>${g.ticker ? `<br><small class="na">${g.ticker}</small>` : ''}</td>
+          <td>${fmt(g.cost_basis)}</td>
+          <td>${fmt(g.current_value)}</td>
+          <td>${fmtGain(g.unrealized_gain)}</td>
+          <td class="gain">${fmt(g.net_dividends)}</td>
+          <td class="loss">−${fmt(g.transaction_fees)}</td>
+          <td>${fmtGain(g.total_net_gain)}</td>
+          <td>${fmtPct(g.gain_pct)}</td>
+        </tr>`).join('') || '<tr><td colspan="8" class="na">No data</td></tr>';
+  } catch (e) { showError('Gains load failed: ' + e.message); }
+}
+
+// ── Fees ───────────────────────────────────────────────────────────────────
+async function loadFees() {
+  document.getElementById('feesBody').innerHTML =
+    `<tr><td colspan="4" class="loading"><span class="spinner"></span>Loading…</td></tr>`;
+  document.getElementById('feeCards').innerHTML = '';
+  try {
+    const data = await api(`/api/portfolio/fees?currency=${currency}`);
+    const sym  = CURRENCY_SYMBOLS[currency];
+
+    document.getElementById('feeCards').innerHTML = `
+      <div class="card"><div class="label">Monthly Fees</div>
+        <div class="value">${sym}${data.total_monthly_fees.toLocaleString('en-US',{maximumFractionDigits:0})}</div></div>
+      <div class="card"><div class="label">Transaction Fees</div>
+        <div class="value">${sym}${data.total_transaction_fees.toLocaleString('en-US',{maximumFractionDigits:0})}</div></div>
+      <div class="card"><div class="label">Dividend Tax</div>
+        <div class="value">${sym}${data.total_dividend_tax.toLocaleString('en-US',{maximumFractionDigits:0})}</div></div>
+      <div class="card red"><div class="label">Capital Gains Tax</div>
+        <div class="value">${sym}${data.total_capital_gains_tax.toLocaleString('en-US',{maximumFractionDigits:0})}</div></div>
+      <div class="card red"><div class="label">Total Costs</div>
+        <div class="value">${sym}${data.total_costs.toLocaleString('en-US',{maximumFractionDigits:0})}</div></div>
+    `;
+
+    document.getElementById('feesBody').innerHTML =
+      data.breakdown.map(b => `
+        <tr>
+          <td>${b.date}</td>
+          <td><span class="badge" style="background:${TYPE_COLORS[b.type]}22;color:${TYPE_COLORS[b.type]}">${b.type.replace(/_/g,' ')}</span></td>
+          <td>${b.symbol || '<span class="na">—</span>'}</td>
+          <td>${sym}${b.amount.toLocaleString('en-US',{maximumFractionDigits:2})}</td>
+        </tr>`).join('') || '<tr><td colspan="4" class="na">No data</td></tr>';
+  } catch (e) { showError('Fees load failed: ' + e.message); }
+}
+
+// ── Actions ────────────────────────────────────────────────────────────────
+async function loadActions() {
+  document.getElementById('actionsBody').innerHTML =
+    `<tr><td colspan="9" class="loading"><span class="spinner"></span>Loading…</td></tr>`;
+  try {
+    const actions = await api('/api/actions');
+    document.getElementById('actionsBody').innerHTML =
+      actions.map((a, i) => `
+        <tr>
+          <td class="na">${i}</td>
+          <td>${a.date}</td>
+          <td><strong>${a.action_type}</strong></td>
+          <td>${a.symbol || '<span class="na">—</span>'}</td>
+          <td>${a.quantity != null ? a.quantity : '<span class="na">—</span>'}</td>
+          <td>${a.cost_per_unit != null ? a.cost_per_unit : '<span class="na">—</span>'}</td>
+          <td>${a.amount != null ? a.amount.toLocaleString('en-US',{maximumFractionDigits:2}) : '<span class="na">—</span>'}</td>
+          <td>${a.currency}</td>
+          <td>
+            <button class="btn-sm btn-edit"   onclick="editAction(${i})">Edit</button>
+            <button class="btn-sm btn-delete" onclick="deleteAction(${i})">Delete</button>
+          </td>
+        </tr>`).join('') || '<tr><td colspan="9" class="na">No transactions</td></tr>';
+  } catch (e) { showError('Actions load failed: ' + e.message); }
+}
+
+// ── Modal ──────────────────────────────────────────────────────────────────
+function openModal(action = null, idx = null) {
+  editingIdx = idx;
+  document.getElementById('modalTitle').textContent = idx != null ? 'Edit Transaction' : 'Add Transaction';
+  document.getElementById('f-date').value   = action?.date    || new Date().toISOString().slice(0,10);
+  document.getElementById('f-type').value   = action?.action_type || 'buy';
+  document.getElementById('f-symbol').value = action?.symbol  || '';
+  document.getElementById('f-ticker').value = action?.ticker  || '';
+  document.getElementById('f-qty').value         = action?.quantity    ?? '';
+  document.getElementById('f-cpu').value         = action?.cost_per_unit ?? '';
+  document.getElementById('f-amount').value      = action?.amount      ?? '';
+  document.getElementById('f-split-ratio').value = action?.split_ratio ?? '';
+  document.getElementById('f-currency').value    = action?.currency    || 'ILS';
+  document.getElementById('f-note').value   = action?.note    || '';
+  document.getElementById('modalBg').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modalBg').classList.remove('open');
+  editingIdx = null;
+}
+
+async function editAction(idx) {
+  const actions = await api('/api/actions');
+  openModal(actions[idx], idx);
+}
+
+async function deleteAction(idx) {
+  if (!confirm('Delete this transaction?')) return;
+  await fetch(`/api/actions/${idx}`, { method: 'DELETE' });
+  clearApiCache();
+  loadActions();
+}
+
+async function saveAction() {
+  const atype   = document.getElementById('f-type').value;
+  let qty    = parseFloat(document.getElementById('f-qty').value)    || null;
+  let cpu    = parseFloat(document.getElementById('f-cpu').value)    || null;
+  let amount = parseFloat(document.getElementById('f-amount').value) || null;
+
+  // ── Auto-fill missing numeric fields ────────────────────────────────────
+  // 1. amount missing → qty × cpu
+  if (!amount && qty && cpu)  { amount = Math.round(qty * cpu * 100) / 100; }
+  // 2. cpu missing → amount / qty
+  if (!cpu && qty && amount)  { cpu = Math.round((amount / qty) * 10000) / 10000; }
+  // 3. qty missing → amount / cpu
+  if (!qty && cpu && amount)  { qty = Math.round((amount / cpu) * 10000) / 10000; }
+
+  // ── Build body ───────────────────────────────────────────────────────────
+  const body = {
+    date:          document.getElementById('f-date').value,
+    action_type:   atype,
+    symbol:        document.getElementById('f-symbol').value || null,
+    ticker:        document.getElementById('f-ticker').value || null,
+    quantity:      qty,
+    cost_per_unit: cpu,
+    amount:        amount,
+    split_ratio:   parseFloat(document.getElementById('f-split-ratio').value) || null,
+    currency:      document.getElementById('f-currency').value,
+    note:          document.getElementById('f-note').value || null,
+  };
+
+  // ── Validation ───────────────────────────────────────────────────────────
+  if (!body.date || !body.action_type || !body.currency) {
+    alert('Date, Type and Currency are required.');
+    return;
+  }
+  if ((atype === 'buy' || atype === 'sell') && !body.symbol) {
+    alert('Symbol is required for buy/sell actions.');
+    return;
+  }
+  if (atype === 'split' && !body.split_ratio) {
+    alert('Split ratio is required for split actions.');
+    return;
+  }
+  if ((atype === 'deposit' || atype === 'buy' || atype === 'sell') && !body.amount) {
+    alert('Amount is required (or provide Quantity + Cost/Unit to auto-calculate).');
+    return;
+  }
+
+  // ── Reflect computed values back into form for user to see ───────────────
+  if (qty)    document.getElementById('f-qty').value    = qty;
+  if (cpu)    document.getElementById('f-cpu').value    = cpu;
+  if (amount) document.getElementById('f-amount').value = amount;
+
+  try {
+    if (editingIdx != null) {
+      await fetch(`/api/actions/${editingIdx}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    } else {
+      await fetch('/api/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    }
+    clearApiCache();
+    closeModal();
+    refreshAll();
+  } catch (e) {
+    showError('Save failed: ' + e.message);
+  }
+}
+</script>
+</body>
+</html>
+

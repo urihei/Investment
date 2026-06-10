@@ -1,5 +1,6 @@
 from zoneinfo import ZoneInfo
 
+import pandas as pd
 import yfinance as yf
 from datetime import datetime
 
@@ -46,6 +47,8 @@ def calculate_stock_earnings(symbol, purchase_price, shares, purchase_date, targ
     }
 
 def main():
+    file_path = r"/home/urihein/"
+    df = pd.read_csv(file_path)
     result = calculate_stock_earnings('RIO', 64.91, 220, '2024-07-16', '2025-06-12')
     print(result)
 

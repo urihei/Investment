@@ -1,0 +1,390 @@
+{
+  "start_date": "2019-09-01",
+  "initial_holdings": {
+    "USD": {
+      "quantity": 1066.62,
+      "ticker": "USDILS=X",
+      "currency": "USD",
+      "asset_type": "cash"
+    },
+    "Corning Inc": {
+      "quantity": 150.0,
+      "ticker": "GLW",
+      "currency": "USD",
+      "asset_type": "stock"
+    },
+    "Apple Inc": {
+      "quantity": 200.0,
+      "ticker": "AAPL",
+      "currency": "USD",
+      "asset_type": "stock"
+    },
+    "Walmart Inc": {
+      "quantity": 25.0,
+      "ticker": "WMT",
+      "currency": "USD",
+      "asset_type": "stock"
+    },
+    "Solventum Corp": {
+      "quantity": 0.0,
+      "ticker": "SOLV",
+      "currency": "USD",
+      "asset_type": "stock",
+      "note": "Spun off from 3M (MMM) on 2024-04-01"
+    },
+    "3M Co": {
+      "quantity": 40.0,
+      "ticker": "MMM",
+      "currency": "USD",
+      "asset_type": "stock"
+    },
+    "Microsoft Corp": {
+      "quantity": 100.0,
+      "ticker": "MSFT",
+      "currency": "USD",
+      "asset_type": "stock"
+    },
+    "Waste Management Inc": {
+      "quantity": 150.0,
+      "ticker": "WM",
+      "currency": "USD",
+      "asset_type": "stock"
+    },
+    "B Communications": {
+      "quantity": 352.0,
+      "ticker": "CSV:B Communications",
+      "currency": "ILS",
+      "asset_type": "stock",
+      "note": "TASE only - not available on yfinance"
+    },
+    "KSM.DJDVN": {
+      "quantity": 5000.0,
+      "ticker": "CSV:KSM.DJDVN",
+      "currency": "ILS",
+      "asset_type": "etf",
+      "ISIN": "IL0011460677",
+      "note": "TASE ETF graph URL: https://market.tase.co.il/he/market_data/etf/1146067/graph [CSV prices loaded: 1824 rows]"
+    },
+    "PTF 4D 30 Dividend Asia": {
+      "quantity": 550.0,
+      "ticker": "CSV:PTF 4D 30 Dividend Asia",
+      "currency": "ILS",
+      "asset_type": "etf",
+      "note": "TASE ETF maya URL: https://maya.tase.co.il/he/funds/mutual-funds/5132329/historical-data?period=3 [CSV prices loaded: 886 rows]"
+    },
+    "IDB Finance Bond": {
+      "quantity": 14.54,
+      "ticker": null,
+      "currency": "ILS",
+      "asset_type": "bond",
+      "note": "TASE bond - not available on yfinance"
+    },
+    "iShares Exp Technologies": {
+      "quantity": 400.0,
+      "ticker": "XT",
+      "currency": "USD",
+      "asset_type": "etf"
+    },
+    "Intuitive Surgical Inc": {
+      "quantity": 54.0,
+      "ticker": "ISRG",
+      "currency": "USD",
+      "asset_type": "stock"
+    },
+    "NIS": {
+      "quantity": 379.76,
+      "ticker": null,
+      "currency": "ILS",
+      "asset_type": "cash"
+    },
+    "KSM.DJINR": {
+      "quantity": 0.0,
+      "ticker": "CSV:KSM.DJINR",
+      "currency": "ILS",
+      "asset_type": "stock",
+      "note": "Promoted from action CSV prices loaded: 584 rows 1146448 [CSV prices loaded: 1824 rows]"
+    }
+  },
+  "actions": [
+    {
+      "date": "2021-12-27",
+      "action_type": "sell",
+      "symbol": "USD",
+      "ticker": "SDILS=X",
+      "quantity": 200.0,
+      "cost_per_unit": 3.11,
+      "amount": 622.0,
+      "currency": "ILS"
+    },
+    {
+      "date": "2023-12-20",
+      "action_type": "deposit",
+      "symbol": null,
+      "ticker": null,
+      "quantity": null,
+      "cost_per_unit": null,
+      "amount": 50000.0,
+      "currency": "ILS"
+    },
+    {
+      "date": "2024-01-05",
+      "action_type": "buy",
+      "symbol": "ISH.FRF SP 500",
+      "ticker": "CSPX.L",
+      "ISIN": "IE00B5BMR087",
+      "quantity": 20.0,
+      "cost_per_unit": 2034.03,
+      "amount": 40680.64,
+      "currency": "ILS"
+    },
+    {
+      "date": "2024-02-23",
+      "action_type": "split",
+      "symbol": "Walmart Inc",
+      "ticker": "WMT",
+      "quantity": null,
+      "cost_per_unit": null,
+      "amount": null,
+      "currency": "USD",
+      "split_ratio": 3.0,
+      "note": "Walmart 3-for-1 stock split"
+    },
+    {
+      "date": "2024-04-01",
+      "action_type": "spinoff",
+      "symbol": "Solventum Corp",
+      "ticker": "SOLV",
+      "quantity": 10.0,
+      "cost_per_unit": null,
+      "amount": null,
+      "currency": "USD",
+      "source_symbol": "3M Co",
+      "source_ticker": "MMM",
+      "note": "Solventum spun off from 3M - received 40 shares"
+    },
+    {
+      "date": "2024-06-10",
+      "action_type": "deposit",
+      "symbol": null,
+      "ticker": null,
+      "quantity": null,
+      "cost_per_unit": null,
+      "amount": 90000.0,
+      "currency": "ILS"
+    },
+    {
+      "date": "2024-06-19",
+      "action_type": "buy",
+      "symbol": "Walmart Inc",
+      "ticker": "WMT",
+      "quantity": 74.0,
+      "cost_per_unit": 67.5,
+      "amount": 4995.0,
+      "currency": "USD"
+    },
+    {
+      "date": "2024-06-20",
+      "action_type": "buy",
+      "symbol": "MIZRAHI TEFAHOT",
+      "ticker": "MZTF.TA",
+      "quantity": 350.0,
+      "cost_per_unit": 129.33,
+      "amount": 45265.0,
+      "currency": "ILS"
+    },
+    {
+      "date": "2024-07-15",
+      "action_type": "buy",
+      "symbol": "USD",
+      "ticker": null,
+      "quantity": null,
+      "cost_per_unit": null,
+      "amount": 50000,
+      "split_ratio": null,
+      "currency": "ILS",
+      "note": null
+    },
+    {
+      "date": "2024-07-16",
+      "action_type": "buy",
+      "symbol": "RIO",
+      "ticker": "RIO",
+      "quantity": 220.0,
+      "cost_per_unit": 64.91,
+      "amount": 14280.14,
+      "currency": "USD"
+    },
+    {
+      "date": "2024-09-11",
+      "action_type": "deposit",
+      "symbol": null,
+      "ticker": null,
+      "quantity": null,
+      "cost_per_unit": null,
+      "amount": 400000.0,
+      "currency": "ILS"
+    },
+    {
+      "date": "2024-09-18",
+      "action_type": "buy",
+      "symbol": "ISH.FRF SP 500",
+      "ticker": "CSPX.L",
+      "ISIN": "IE00B5BMR087",
+      "quantity": 60.0,
+      "cost_per_unit": 2254.52,
+      "amount": 135271.2,
+      "currency": "ILS"
+    },
+    {
+      "date": "2024-09-18",
+      "action_type": "buy",
+      "symbol": "KSM.DJINR",
+      "ticker": null,
+      "ISIN": "IL0011464489",
+      "quantity": 1000.0,
+      "cost_per_unit": 167.57,
+      "amount": 167567.4,
+      "currency": "ILS",
+      "note": "TASE ETF - not available on yfinance"
+    },
+    {
+      "date": "2024-09-24",
+      "action_type": "buy",
+      "symbol": "ISH.FRF MSCIACW",
+      "ticker": "IUSQ.DE",
+      "ISIN": "IE00B6R52259",
+      "quantity": 300.0,
+      "cost_per_unit": 336.3,
+      "amount": 100890.01,
+      "currency": "ILS"
+    },
+    {
+      "date": "2025-03-03",
+      "action_type": "buy",
+      "symbol": "WMT",
+      "ticker": "WMT",
+      "quantity": 10.0,
+      "cost_per_unit": 98.0,
+      "amount": 980.0,
+      "currency": "USD"
+    },
+    {
+      "date": "2025-06-15",
+      "action_type": "deposit",
+      "symbol": null,
+      "ticker": null,
+      "quantity": null,
+      "cost_per_unit": null,
+      "amount": 40000.0,
+      "currency": "ILS"
+    },
+    {
+      "date": "2025-08-28",
+      "action_type": "buy",
+      "symbol": "ISH.FRF NSDQ100",
+      "ticker": "CNDX.L",
+      "ISIN": "IE00B53SZB19",
+      "quantity": 9.0,
+      "cost_per_unit": 4540.0,
+      "amount": 40860.0,
+      "currency": "ILS"
+    },
+    {
+      "date": "2026-01-08",
+      "action_type": "sell",
+      "symbol": "B Communications",
+      "ticker": null,
+      "quantity": 352.0,
+      "cost_per_unit": null,
+      "amount": 9318.67,
+      "currency": "ILS",
+      "note": "Sold all B Communications holdings"
+    },
+    {
+      "date": "2026-01-12",
+      "action_type": "deposit",
+      "symbol": null,
+      "ticker": null,
+      "quantity": null,
+      "cost_per_unit": null,
+      "amount": 50000.0,
+      "currency": "ILS"
+    },
+    {
+      "date": "2026-03-04",
+      "action_type": "buy",
+      "symbol": "INV.FRFFTSEAW",
+      "ticker": "FWIA.DE",
+      "ISIN": "IE000716YHJ7",
+      "quantity": 1538.0,
+      "cost_per_unit": 26.2,
+      "amount": 40295.6,
+      "currency": "ILS"
+    },
+    {
+      "date": "2026-03-05",
+      "action_type": "deposit",
+      "symbol": null,
+      "ticker": null,
+      "quantity": null,
+      "cost_per_unit": null,
+      "amount": 40000.0,
+      "currency": "ILS"
+    },
+    {
+      "date": "2026-03-12",
+      "action_type": "buy",
+      "symbol": "ISH.FRF SP 500",
+      "ticker": "CSPX.L",
+      "ISIN": "IE00B5BMR087",
+      "quantity": 22.0,
+      "cost_per_unit": 2255.0,
+      "amount": 49610.0,
+      "currency": "ILS"
+    },
+    {
+      "date": "2026-03-23",
+      "action_type": "buy",
+      "symbol": "ISH.FRF NSDQ100",
+      "ticker": "CNDX.L",
+      "ISIN": "IE00B53SZB19",
+      "quantity": 2.0,
+      "cost_per_unit": 4354.0,
+      "amount": 8708.0,
+      "currency": "ILS"
+    },
+    {
+      "date": "2026-03-24",
+      "action_type": "deposit",
+      "symbol": null,
+      "ticker": null,
+      "quantity": null,
+      "cost_per_unit": null,
+      "amount": 20000.0,
+      "currency": "ILS"
+    },
+    {
+      "date": "2026-04-14",
+      "action_type": "buy",
+      "symbol": "ISH.FRF NSDQ100",
+      "ticker": "CNDX.L",
+      "ISIN": "IE00B53SZB19",
+      "quantity": 4.0,
+      "cost_per_unit": 4423.0,
+      "amount": 17692.0,
+      "currency": "ILS"
+    },
+    {
+      "date": "2026-06-10",
+      "action_type": "deposit",
+      "symbol": null,
+      "ticker": null,
+      "quantity": null,
+      "cost_per_unit": null,
+      "amount": 35000,
+      "split_ratio": null,
+      "currency": "ILS",
+      "note": null
+    }
+  ]
+}
