@@ -1,0 +1,7 @@
+Flask
+Flask-Cors
+pandas
+yfinance
+python-dateutil
+playwright
+
