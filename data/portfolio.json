@@ -245,7 +245,7 @@
       "cost_per_unit": 167.57,
       "amount": 167567.4,
       "currency": "ILS",
-      "note": "TASE ETF - not available on yfinance"
+      "note": "TASE ETF maya URL: https://market.tase.co.il/he/market_data/etf/1146448/graph"
     },
     {
       "date": "2024-09-24",
@@ -382,6 +382,18 @@
       "quantity": null,
       "cost_per_unit": null,
       "amount": 35000,
+      "split_ratio": null,
+      "currency": "ILS",
+      "note": null
+    },
+    {
+      "date": "2026-06-11",
+      "action_type": "buy",
+      "symbol": "INV.FRFFTSEAW",
+      "ticker": "FWIA.DE",
+      "quantity": 1302,
+      "cost_per_unit": 26.82,
+      "amount": 34919.64,
       "split_ratio": null,
       "currency": "ILS",
       "note": null

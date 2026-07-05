@@ -57,7 +57,11 @@ FOREX_TICKERS = {
 # ─────────────────────────────────────────────────────────────────────────────
 class PortfolioEngine:
 
-    _CSV_AUTOFETCH_VERSION = 2
+    _CSV_AUTOFETCH_VERSION = 3
+    _CSV_AUTOFETCH_OK_COOLDOWN_DAYS = 1
+    _CSV_AUTOFETCH_FAIL_COOLDOWN_DAYS = 1
+    _DENSE_SERIES_STALE_DAYS = 2
+    _DIVIDEND_REFRESH_COOLDOWN_DAYS = 1
 
     def __init__(self,
                  portfolio_path: Path = PORTFOLIO_JSON,
@@ -152,8 +156,14 @@ class PortfolioEngine:
             missing.append((start, cache_start - timedelta(days=1)))
 
         # Gap after cached window (also covers stale today)
-        # If cache_end < today the series is out of date; re-fetch from cache_end
-        trailing_start = cache_end if cache_end < today else cache_end + timedelta(days=1)
+        # For dense series (prices/fx), skip tiny trailing gaps to keep requests cache-first.
+        trailing_start = cache_end + timedelta(days=1)
+        if cache_end < today:
+            cache_age = (today - cache_end).days
+            if cache_age > self._DENSE_SERIES_STALE_DAYS:
+                trailing_start = cache_end
+            else:
+                trailing_start = today + timedelta(days=1)
         if end >= trailing_start:
             fetch_from = max(trailing_start, start)
             if fetch_from <= end:
@@ -384,6 +394,25 @@ class PortfolioEngine:
             return resp.read().decode(charset, errors="replace")
 
     @staticmethod
+    def _http_post_json(url: str, payload: dict, timeout: int = 30, referer: str | None = None) -> str:
+        headers = {
+            "User-Agent": "Mozilla/5.0",
+            "Content-Type": "application/json",
+            "Accept": "application/json, text/plain, */*",
+        }
+        if referer:
+            headers["Referer"] = referer
+        req = Request(
+            url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers=headers,
+            method="POST",
+        )
+        with urlopen(req, timeout=timeout) as resp:
+            charset = resp.headers.get_content_charset() or "utf-8"
+            return resp.read().decode(charset, errors="replace")
+
+    @staticmethod
     def _pick_tase_table_columns(columns: list[str]) -> tuple[str | None, str | None]:
         date_col = None
         price_col = None
@@ -594,6 +623,58 @@ class PortfolioEngine:
                 best = cand
         return best
 
+    def _parse_maya_mutual_history_payload(self, payload: str) -> dict[str, float]:
+        try:
+            obj = json.loads(payload)
+        except Exception:
+            return {}
+        if not isinstance(obj, list):
+            return {}
+
+        parsed: dict[str, float] = {}
+        for row in obj:
+            if not isinstance(row, dict):
+                continue
+            ds = row.get("tradeDate") or row.get("date")
+            pv = row.get("sellPrice")
+            if pv is None:
+                pv = row.get("purchasePrice")
+            if pv is None:
+                pv = row.get("price") or row.get("close") or row.get("value")
+            if ds is None or pv is None:
+                continue
+            try:
+                dts = pd.to_datetime(ds, errors="coerce")
+                if pd.isna(dts):
+                    continue
+                parsed[dts.date().isoformat()] = float(pv)
+            except Exception:
+                continue
+        return self._normalize_tase_series(parsed)
+
+    def _fetch_maya_mutual_history_from_api(self, source_url: str) -> dict[str, float]:
+        m = re.search(r"/mutual-funds/(\d{7,8})/historical-data", source_url)
+        if not m:
+            return {}
+        fund_id = m.group(1).lstrip("0") or m.group(1)
+        api_url = f"https://maya.tase.co.il/api/v1/funds/mutual/{fund_id}/history"
+
+        merged: dict[str, float] = {}
+        page_size = 20
+        for page in range(1, 500):
+            text = self._http_post_json(
+                api_url,
+                {"pageSize": page_size, "pageNumber": page, "period": 3},
+                referer=source_url,
+            )
+            chunk = self._parse_maya_mutual_history_payload(text)
+            if not chunk:
+                break
+            merged.update(chunk)
+            if len(chunk) < page_size:
+                break
+        return merged
+
     @staticmethod
     def _extract_urls(text: str) -> list[str]:
         return [u.rstrip(")]},.") for u in re.findall(r"https?://[^\s\"'<>]+", text or "")]
@@ -603,10 +684,24 @@ class PortfolioEngine:
             return ticker[4:]
 
         source_texts: list[str] = []
+        csv_symbol = ticker[4:] if ticker.startswith("CSV:") else ticker
         for name, info in self.initial_holdings.items():
-            if info.get("ticker") == ticker:
+            holding_ticker = info.get("ticker")
+            if holding_ticker == ticker or holding_ticker == csv_symbol:
                 source_texts.append(str(info.get("note") or ""))
                 source_texts.append(name)
+
+        # Some promoted CSV assets keep the TASE URL only on the originating buy action.
+        for action in self.actions:
+            action_ticker = action.get("ticker")
+            action_symbol = action.get("symbol")
+            if (
+                action_ticker in {ticker, csv_symbol}
+                or action_symbol in {ticker, csv_symbol}
+            ):
+                source_texts.append(str(action.get("note") or ""))
+                if action_symbol:
+                    source_texts.append(str(action_symbol))
 
         for txt in source_texts:
             for url in self._extract_urls(txt):
@@ -625,30 +720,85 @@ class PortfolioEngine:
                 return f"https://maya.tase.co.il/he/funds/mutual-funds/{fund_id}/historical-data?period=3"
         return None
 
-    def _maybe_autofetch_csv_prices(self, ticker: str) -> bool:
+    def _is_csv_autofetch_due(self, ticker: str) -> bool:
         marker_key = f"csv_autofetch_status_{ticker}"
         marker = self._meta_cache_get(marker_key)
-        today_iso = date.today().isoformat()
-        if (
-            isinstance(marker, dict)
-            and marker.get("status") == "failed"
-            and marker.get("date") == today_iso
-            and marker.get("version") == self._CSV_AUTOFETCH_VERSION
-        ):
+        if not isinstance(marker, dict):
+            return True
+        if marker.get("version") != self._CSV_AUTOFETCH_VERSION:
+            return True
+
+        marker_date = marker.get("date")
+        if not marker_date:
+            return True
+        try:
+            marker_day = date.fromisoformat(marker_date)
+        except (TypeError, ValueError):
+            return True
+
+        age_days = (date.today() - marker_day).days
+        status = marker.get("status")
+        if status == "ok":
+            return age_days >= self._CSV_AUTOFETCH_OK_COOLDOWN_DAYS
+        if status == "failed":
+            return age_days >= self._CSV_AUTOFETCH_FAIL_COOLDOWN_DAYS
+        return True
+
+    def _is_dividend_refresh_due(self, ticker: str) -> bool:
+        marker = self._meta_cache_get(f"div_refresh_status_{ticker}")
+        if not isinstance(marker, dict):
+            return True
+        marker_date = marker.get("date")
+        if not marker_date:
+            return True
+        try:
+            marker_day = date.fromisoformat(marker_date)
+        except (TypeError, ValueError):
+            return True
+        return (date.today() - marker_day).days >= self._DIVIDEND_REFRESH_COOLDOWN_DAYS
+
+    def _maybe_autofetch_csv_prices(self, ticker: str) -> bool:
+        if not self._is_csv_autofetch_due(ticker):
             return False
+
+        marker_key = f"csv_autofetch_status_{ticker}"
+        today_iso = date.today().isoformat()
 
         source_url = self._find_tase_historical_url_for_csv_ticker(ticker)
         if not source_url:
             return False
 
         try:
-            html = self._http_get_text(source_url)
-            if "market.tase.co.il" in source_url and "/graph" in source_url:
-                price_data = self._parse_tase_graph_prices_from_html(html)
-                if not price_data:
-                    price_data = self._parse_tase_graph_prices_with_playwright(source_url)
-            else:
-                price_data = self._parse_tase_prices_from_html(html)
+            price_data: dict[str, float] = {}
+            source_kind = "unknown"
+            if "maya.tase.co.il" in source_url and "historical-data" in source_url:
+                # Prefer Maya's JSON API over brittle HTML scraping for mutual funds.
+                price_data = self._fetch_maya_mutual_history_from_api(source_url)
+                if price_data:
+                    source_kind = "maya_api"
+
+            if not price_data:
+                html = self._http_get_text(source_url)
+                if "market.tase.co.il" in source_url and "/graph" in source_url:
+                    price_data = self._parse_tase_graph_prices_from_html(html)
+                    if price_data:
+                        source_kind = "market_graph_html"
+                    if not price_data:
+                        price_data = self._parse_tase_graph_prices_with_playwright(source_url)
+                        if price_data:
+                            source_kind = "market_graph_playwright"
+                elif "maya.tase.co.il" in source_url and "historical-data" in source_url:
+                    price_data = self._parse_tase_prices_from_html(html)
+                    if price_data:
+                        source_kind = "maya_historical_html"
+                    if not price_data:
+                        price_data = self._parse_tase_graph_prices_with_playwright(source_url)
+                        if price_data:
+                            source_kind = "maya_historical_playwright"
+                else:
+                    price_data = self._parse_tase_prices_from_html(html)
+                    if price_data:
+                        source_kind = "generic_html"
             if not price_data:
                 self._meta_cache_set(marker_key, {
                     "status": "failed",
@@ -666,10 +816,17 @@ class PortfolioEngine:
                 "status": "ok",
                 "date": today_iso,
                 "rows": len(price_data),
+                "source": source_kind,
                 "version": self._CSV_AUTOFETCH_VERSION,
             })
             self.flush_cache()
-            logger.info("Auto-loaded %s CSV prices for %s from %s", len(price_data), ticker, source_url)
+            logger.info(
+                "Auto-loaded %s CSV prices for %s via %s (%s)",
+                len(price_data),
+                ticker,
+                source_kind,
+                source_url,
+            )
             return True
         except (URLError, TimeoutError, ValueError) as e:
             logger.warning("Failed auto-load for %s from TASE: %s", ticker, e)
@@ -701,19 +858,14 @@ class PortfolioEngine:
 
         # ── CSV virtual tickers: read directly from cache, no yfinance ──────
         if ticker.startswith("CSV:"):
+            # Keep TASE-backed CSV tickers fresh (at most once per cooldown window).
+            self._maybe_autofetch_csv_prices(ticker)
             stored = self._cache.get(cache_key, {})
             result = {d: v for d, v in stored.items()
                       if start.isoformat() <= d <= end.isoformat()
                       and isinstance(v, (int, float))}
             if not result:
-                # Try one automatic TASE import if this CSV virtual ticker has no local data yet.
-                self._maybe_autofetch_csv_prices(ticker)
-                stored = self._cache.get(cache_key, {})
-                result = {d: v for d, v in stored.items()
-                          if start.isoformat() <= d <= end.isoformat()
-                          and isinstance(v, (int, float))}
-                if not result:
-                    return None
+                return None
             s = pd.Series(result)
             s.index = pd.to_datetime(s.index).tz_localize(None)
             return s.sort_index()
@@ -784,10 +936,11 @@ class PortfolioEngine:
             return pd.Series(dtype=float)
 
         cache_key = f"div_{ticker}"
-        cached_s, missing = self._series_cache_get(cache_key, start, end)
+        stored = self._cache.get(cache_key, {})
+        has_cached = any(isinstance(v, (int, float)) for v in stored.values())
 
-        if missing:
-            # Dividends: always fetch the full history in one call (sparse data, cheap)
+        # Dividends are sparse; if we already have cache, avoid network on every API call.
+        if (not has_cached) or self._is_dividend_refresh_due(ticker):
             try:
                 divs = yf.Ticker(ticker).dividends
                 if not divs.empty:
@@ -796,8 +949,16 @@ class PortfolioEngine:
                         divs = divs / 100.0   # ILA → ILS
                     self._series_cache_set(cache_key,
                                            {str(k.date()): v for k, v in divs.items()})
+                self._meta_cache_set(f"div_refresh_status_{ticker}", {
+                    "date": date.today().isoformat(),
+                    "status": "ok",
+                })
             except Exception as e:
                 logger.error("Failed to fetch dividends %s: %s", ticker, e)
+                self._meta_cache_set(f"div_refresh_status_{ticker}", {
+                    "date": date.today().isoformat(),
+                    "status": "failed",
+                })
             self.flush_cache()
 
         # Read filtered range from cache
